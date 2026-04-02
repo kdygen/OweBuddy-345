@@ -328,11 +328,10 @@ function App() {
         <div className="mt-8">
           {notice.message ? (
             <div
-              className={`rounded-3xl border px-5 py-4 text-sm backdrop-blur ${
-                notice.type === 'success'
+              className={`rounded-3xl border px-5 py-4 text-sm backdrop-blur ${notice.type === 'success'
                   ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-50'
                   : 'border-white/10 bg-white/5 text-slate-200'
-              }`}
+                }`}
             >
               {notice.message}
             </div>
