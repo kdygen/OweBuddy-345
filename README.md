@@ -1,4 +1,4 @@
-Yunus Abdurakhman,
+Yunus Abdurahman,
 Bex Abila,
 Margulan Kudaibergen.
 # OweBuddy-345
