@@ -25,6 +25,13 @@ const initialFriends = [
         note: 'Roommate expenses',
         status: 'Balanced',
     },
+    {
+        id: 'friend-4',
+        name: 'Amina Saleh',
+        email: 'amina@example.com',
+        note: 'Weekend trip split',
+        status: 'Owes $12',
+    },
 ]
 
 const initialAddFriendForm = {
