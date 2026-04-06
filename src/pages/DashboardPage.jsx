@@ -93,9 +93,6 @@ function DashboardPage({ userName, onLogout }) {
                         <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-sm text-emerald-100">
                             Dashboard is live
                         </span>
-                        <button className="btn-secondary" onClick={onLogout} type="button">
-                            Log out
-                        </button>
                     </div>
                 </header>
 
