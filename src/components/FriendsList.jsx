@@ -1,4 +1,15 @@
 function FriendsList({ friends }) {
+    if (!friends.length) {
+        return (
+            <div className="rounded-3xl border border-dashed border-white/15 bg-white/5 px-5 py-8 text-center">
+                <div className="text-lg font-semibold text-white">0 friends saved</div>
+                <div className="mt-2 text-sm text-slate-400">
+                    This list will populate after the backend is connected.
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-4">
             {friends.map((friend) => (

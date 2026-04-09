@@ -18,8 +18,8 @@ const features = [
 
 const stats = [
     { value: '0', label: 'backend required' },
-    { value: '3', label: 'core screens' },
-    { value: '100%', label: 'local interaction' },
+    { value: '0', label: 'core screens' },
+    { value: '0', label: 'local interaction' },
 ]
 
 function LandingPage({ onLogin, onSignup }) {
