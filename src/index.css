@@ -9,6 +9,11 @@
     color: #f8fafc;
 }
 
+[data-theme='light'] {
+    color-scheme: light;
+    background: #ffffff;
+}
+
 html,
 body,
 #root {
@@ -19,6 +24,11 @@ body {
     margin: 0;
     background: #050816;
     color: #f8fafc;
+}
+
+[data-theme='light'] body {
+    background: #ffffff;
+    color: #000000;
 }
 
 * {
@@ -44,10 +54,91 @@ a {
 }
 
 .glass-card {
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(9, 14, 34, 0.72);
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32);
-    backdrop-filter: blur(20px);
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+[data-theme='light'] .text-white {
+    color: #0f172a !important;
+}
+
+[data-theme='light'] .text-slate-400,
+[data-theme='light'] .text-slate-300,
+[data-theme='light'] .text-slate-200 {
+    color: #000000 !important;
+}
+
+[data-theme='light'] .bg-white\/5 {
+    background: rgba(15, 23, 42, 0.04) !important;
+}
+
+[data-theme='light'] .border-white\/10,
+[data-theme='light'] .border-white\/12 {
+    border-color: rgba(15, 23, 42, 0.16) !important;
+}
+
+[data-theme='light'] .bg-slate-950\/70 {
+    background: rgba(15, 23, 42, 0.06) !important;
+}
+
+[data-theme='light'] .btn-primary,
+[data-theme='light'] .btn-secondary {
+    background: transparent !important;
+    border-color: rgba(0, 0, 0, 0.16) !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+}
+
+[data-theme='light'] .btn-primary:hover,
+[data-theme='light'] .btn-secondary:hover {
+    border-color: rgba(245, 158, 11, 0.7) !important;
+    background: rgba(245, 158, 11, 0.14) !important;
+    color: #000000 !important;
+}
+
+[data-theme='light'] .auth-input {
+    background: rgba(255, 255, 255, 0.92) !important;
+    border-color: rgba(0, 0, 0, 0.14) !important;
+    color: #000000 !important;
+}
+
+[data-theme='light'] .auth-input::placeholder {
+    color: rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='light'] .auth-input:focus {
+    border-color: rgba(245, 158, 11, 0.7) !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.14);
+}
+
+[data-theme='light'] .glass-button {
+    background: rgba(255, 255, 255, 0.8) !important;
+    border-color: rgba(0, 0, 0, 0.14) !important;
+    color: #000000 !important;
+}
+
+.sidebar-button {
+    color: inherit;
+}
+
+.sidebar-button:hover {
+    border-color: rgba(245, 158, 11, 0.65) !important;
+    background: rgba(245, 158, 11, 0.14) !important;
+    color: #111111 !important;
+}
+
+[data-theme='light'] .sidebar-button {
+    color: #000000 !important;
+    border-color: rgba(0, 0, 0, 0.14) !important;
+}
+
+[data-theme='light'] .sidebar-button:hover {
+    border-color: rgba(245, 158, 11, 0.65) !important;
+    background: rgba(245, 158, 11, 0.16) !important;
+    color: #111111 !important;
 }
 
 .btn-primary,
