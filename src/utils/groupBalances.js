@@ -1,14 +1,16 @@
 const toCents = (value) => Math.round(Number(value || 0) * 100)
 const fromCents = (value) => Number((value / 100).toFixed(2))
 
-export function calculateGroupBalances(group, currentUser = 'You') {
+export function calculateGroupBalances(group, currentUser = 'You', currentUserId = '') {
     const members = Array.isArray(group.members) ? group.members : []
     const expenses = Array.isArray(group.expenses) ? group.expenses : []
     const memberNameById = new Map(members.map((member) => [member.id, member.name]))
     const balanceByMemberId = new Map(members.map((member) => [member.id, 0]))
 
-    const currentUserMember = members.find((member) => member.name === currentUser)
-    const currentUserId = currentUserMember?.id
+    const currentUserMember =
+        members.find((member) => member.id === currentUserId) ||
+        members.find((member) => member.name === currentUser)
+    const currentUserMemberId = currentUserMember?.id
 
     expenses.forEach((expense) => {
         const expenseTotalCents = toCents(expense.amount)
@@ -90,7 +92,7 @@ export function calculateGroupBalances(group, currentUser = 'You') {
         if (debtor.remainingCents === 0) debtorIndex += 1
     }
 
-    const currentUserNetCents = currentUserId ? balanceByMemberId.get(currentUserId) || 0 : 0
+    const currentUserNetCents = currentUserMemberId ? balanceByMemberId.get(currentUserMemberId) || 0 : 0
 
     return {
         id: group.id,
