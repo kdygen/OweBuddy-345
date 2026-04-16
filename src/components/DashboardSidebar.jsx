@@ -1,55 +1,72 @@
+import { useState } from 'react'
+
 const items = [
-    { key: 'overview', label: 'Dashboard', description: 'Overview and quick stats' },
-    { key: 'friends', label: 'Friends List', description: 'See who you owe' },
-    { key: 'add-friend', label: 'Add Friend', description: 'Create a local entry' },
-    { key: 'groups', label: 'Groups List', description: '0 groups created' },
-    { key: 'create-group', label: 'Create Group', description: 'Start a new group' },
-    { key: 'friend-profile', label: 'Friend Profile', description: 'View a contact' },
-    { key: 'group-details', label: 'Group Details', description: 'Members + expenses' },
-    { key: 'invite-members', label: 'Invite/Add Members', description: 'Add people to a group' },
-    { key: 'add-expense', label: 'Add Expense', description: 'Log a 0-value expense' },
-    { key: 'expense-history', label: 'Expense History', description: 'All transactions' },
-    { key: 'transaction-details', label: 'Transaction Details', description: 'Inspect one entry' },
+    { key: 'overview', label: 'Dashboard' },
+    { key: 'groups', label: 'Groups' },
+    { key: 'friends', label: 'Friends' },
 ]
 
 function DashboardSidebar({ activeTab, onChangeTab, onLogout, userName }) {
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+
     return (
-        <aside className="glass-card flex h-full flex-col rounded-[2rem] p-5">
-            <div className="flex items-center gap-3 border-b border-white/10 pb-5">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-300 text-lg font-bold text-slate-950">
-                    O
-                </div>
-                <div>
-                    <div className="text-sm text-slate-400">Signed in as</div>
-                    <div className="font-semibold text-white">{userName}</div>
-                </div>
+        <aside className="rounded-3xl border border-white/10 bg-white/5 p-4">
+            <div className="border-b border-white/10 pb-4">
+                <h2 className="text-lg font-semibold text-white">Split Share</h2>
             </div>
 
-            <div className="mt-5 space-y-3">
+            <div className="mt-4 space-y-2">
                 {items.map((item) => {
                     const isActive = activeTab === item.key
 
                     return (
                         <button
                             key={item.key}
-                            className={`w-full rounded-2xl border px-4 py-4 text-left transition ${isActive
-                                    ? 'border-amber-300/30 bg-amber-300/10 text-white'
-                                    : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
-                                }`}
+                            className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-medium transition ${
+                                isActive
+                                    ? 'border-amber-300/60 bg-amber-300/15 text-white'
+                                    : 'border-white/10 bg-white/5 text-slate-200 hover:border-amber-300/50 hover:bg-amber-300/10'
+                            }`}
                             onClick={() => onChangeTab(item.key)}
                             type="button"
                         >
-                            <div className="font-semibold">{item.label}</div>
-                            <div className="mt-1 text-sm text-slate-400">{item.description}</div>
+                            {item.label}
                         </button>
                     )
                 })}
             </div>
 
-            <div className="mt-auto pt-5">
-                <button className="btn-secondary w-full" onClick={onLogout} type="button">
-                    Log out
+            <div className="relative mt-5 border-t border-white/10 pt-4">
+                <button
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-sm font-medium text-slate-200 transition hover:border-amber-300/50 hover:bg-amber-300/10"
+                    onClick={() => setIsProfileMenuOpen((current) => !current)}
+                    type="button"
+                >
+                    Profile
                 </button>
+
+                {isProfileMenuOpen ? (
+                    <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 rounded-xl border border-white/10 bg-[#111827] p-2 shadow-2xl">
+                        <div className="border-b border-white/10 px-2 pb-2 text-xs text-slate-400">{userName}</div>
+                        <button
+                            className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-amber-300/10"
+                            onClick={() => {
+                                onChangeTab('profile')
+                                setIsProfileMenuOpen(false)
+                            }}
+                            type="button"
+                        >
+                            Go to profile
+                        </button>
+                        <button
+                            className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-200 transition hover:bg-rose-300/10"
+                            onClick={onLogout}
+                            type="button"
+                        >
+                            Log out
+                        </button>
+                    </div>
+                ) : null}
             </div>
         </aside>
     )
