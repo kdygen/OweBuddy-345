@@ -1,4 +1,13 @@
-function FriendsList({ friends }) {
+function FriendsList({ friends, isLoading = false, onDeleteFriend }) {
+    if (isLoading) {
+        return (
+            <div className="rounded-3xl border border-dashed border-white/15 bg-white/5 px-5 py-8 text-center">
+                <div className="text-lg font-semibold text-white">Loading friends</div>
+                <div className="mt-2 text-sm text-slate-400">Fetching friend records from Firebase.</div>
+            </div>
+        )
+    }
+
     if (!friends.length) {
         return (
             <div className="rounded-3xl border border-dashed border-white/15 bg-white/5 px-5 py-8 text-center">
@@ -23,8 +32,19 @@ function FriendsList({ friends }) {
                             <div className="text-sm text-slate-400">{friend.email}</div>
                             {friend.note ? <div className="mt-2 text-sm text-slate-300">{friend.note}</div> : null}
                         </div>
-                        <div className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-sm font-medium text-emerald-100">
-                            {friend.status}
+                        <div className="flex flex-col items-end gap-2">
+                            <div className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-sm font-medium text-emerald-100">
+                                {friend.status}
+                            </div>
+                            {onDeleteFriend ? (
+                                <button
+                                    className="btn-secondary"
+                                    onClick={() => onDeleteFriend(friend.id)}
+                                    type="button"
+                                >
+                                    Delete
+                                </button>
+                            ) : null}
                         </div>
                     </div>
                 </div>

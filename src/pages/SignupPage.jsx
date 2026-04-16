@@ -1,5 +1,23 @@
 import { useState } from 'react'
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import FormField from '../components/FormField'
+import { auth } from '../lib/firebase'
+
+const getSignupErrorMessage = (error) => {
+    switch (error?.code) {
+        case 'auth/configuration-not-found':
+        case 'auth/operation-not-allowed':
+            return 'Enable Email/Password sign-in in Firebase Console > Authentication > Sign-in method.'
+        case 'auth/email-already-in-use':
+            return 'That email is already registered. Use Log in instead.'
+        case 'auth/invalid-email':
+            return 'Enter a valid email address.'
+        case 'auth/weak-password':
+            return 'Use a stronger password with at least 6 characters.'
+        default:
+            return error?.message || 'Sign up failed. Check your Firebase Auth setup.'
+    }
+}
 
 function SignupPage({ onBack, onOpenLogin, onSignupSuccess }) {
     const [form, setForm] = useState({
@@ -8,15 +26,48 @@ function SignupPage({ onBack, onOpenLogin, onSignupSuccess }) {
         password: '',
         confirmPassword: '',
     })
+    const [errorMessage, setErrorMessage] = useState('')
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     const handleChange = (event) => {
         const { name, value } = event.target
         setForm((current) => ({ ...current, [name]: value }))
     }
 
-    const handleSubmit = (event) => {
+    const handleSubmit = async (event) => {
         event.preventDefault()
-        onSignupSuccess(form.name || form.email || 'New user')
+        const normalizedEmail = form.email.trim().toLowerCase()
+        const normalizedName = form.name.trim()
+
+        if (!normalizedEmail || !form.password || !form.confirmPassword) {
+            setErrorMessage('Email and password fields are required.')
+            return
+        }
+
+        if (form.password !== form.confirmPassword) {
+            setErrorMessage('Passwords do not match.')
+            return
+        }
+
+        if (!auth) {
+            setErrorMessage('Firebase is not configured.')
+            return
+        }
+
+        setIsSubmitting(true)
+        setErrorMessage('')
+
+        try {
+            const credentials = await createUserWithEmailAndPassword(auth, normalizedEmail, form.password)
+            await updateProfile(credentials.user, {
+                displayName: normalizedName || normalizedEmail,
+            })
+            onSignupSuccess(credentials.user)
+        } catch (error) {
+            setErrorMessage(getSignupErrorMessage(error))
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     return (
@@ -38,15 +89,14 @@ function SignupPage({ onBack, onOpenLogin, onSignupSuccess }) {
                                 Set up your OweBuddy profile.
                             </h1>
                             <p className="max-w-lg text-base leading-7 text-slate-300">
-                                Add whatever details you want. The form is fully interactive and does not
-                                call a backend yet.
+                                Create a Firebase account for this project and save your profile name.
                             </p>
                         </div>
                     </div>
 
                     <form className="glass-card rounded-[2rem] p-6 sm:p-8" onSubmit={handleSubmit}>
                         <div className="grid gap-4 sm:grid-cols-2">
-                            <FormField label="Full name" hint="Anything is allowed here">
+                            <FormField label="Full name" hint="Saved to your Firebase profile">
                                 <input
                                     className="auth-input"
                                     name="name"
@@ -57,7 +107,7 @@ function SignupPage({ onBack, onOpenLogin, onSignupSuccess }) {
                                 />
                             </FormField>
 
-                            <FormField label="Email address" hint="Optional for now">
+                            <FormField label="Email address" hint="Used for your Firebase account">
                                 <input
                                     className="auth-input"
                                     name="email"
@@ -68,7 +118,7 @@ function SignupPage({ onBack, onOpenLogin, onSignupSuccess }) {
                                 />
                             </FormField>
 
-                            <FormField label="Password" hint="Any password works right now">
+                            <FormField label="Password" hint="Firebase Auth stores this securely">
                                 <input
                                     className="auth-input"
                                     name="password"
@@ -79,7 +129,7 @@ function SignupPage({ onBack, onOpenLogin, onSignupSuccess }) {
                                 />
                             </FormField>
 
-                            <FormField label="Confirm password" hint="This is just local UI for now">
+                            <FormField label="Confirm password" hint="Must match the password above">
                                 <input
                                     className="auth-input"
                                     name="confirmPassword"
@@ -98,11 +148,12 @@ function SignupPage({ onBack, onOpenLogin, onSignupSuccess }) {
                             </label>
 
                             <button className="btn-primary w-full" type="submit">
-                                Create account
+                                {isSubmitting ? 'Creating account...' : 'Create account'}
                             </button>
                             <button className="btn-secondary w-full" onClick={onOpenLogin} type="button">
                                 I already have an account
                             </button>
+                            {errorMessage ? <div className="text-sm text-rose-300">{errorMessage}</div> : null}
                         </div>
                     </form>
                 </section>

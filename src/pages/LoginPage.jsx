@@ -1,17 +1,60 @@
 import { useState } from 'react'
+import { signInWithEmailAndPassword } from 'firebase/auth'
 import FormField from '../components/FormField'
+import { auth } from '../lib/firebase'
+
+const getLoginErrorMessage = (error) => {
+    switch (error?.code) {
+        case 'auth/configuration-not-found':
+        case 'auth/operation-not-allowed':
+            return 'Enable Email/Password sign-in in Firebase Console > Authentication > Sign-in method.'
+        case 'auth/invalid-email':
+            return 'Enter a valid email address.'
+        case 'auth/invalid-credential':
+        case 'auth/wrong-password':
+            return 'Email or password is incorrect.'
+        case 'auth/user-not-found':
+            return 'No account found for that email. Create a new account first.'
+        default:
+            return error?.message || 'Login failed. Check your Firebase Auth setup.'
+    }
+}
 
 function LoginPage({ onBack, onLoginSuccess, onOpenSignup }) {
     const [form, setForm] = useState({ email: '', password: '' })
+    const [errorMessage, setErrorMessage] = useState('')
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     const handleChange = (event) => {
         const { name, value } = event.target
         setForm((current) => ({ ...current, [name]: value }))
     }
 
-    const handleSubmit = (event) => {
+    const handleSubmit = async (event) => {
         event.preventDefault()
-        onLoginSuccess(form.email || 'Guest user')
+        const normalizedEmail = form.email.trim().toLowerCase()
+
+        if (!auth) {
+            setErrorMessage('Firebase is not configured.')
+            return
+        }
+
+        if (!normalizedEmail || !form.password) {
+            setErrorMessage('Enter both email and password.')
+            return
+        }
+
+        setIsSubmitting(true)
+        setErrorMessage('')
+
+        try {
+            const credentials = await signInWithEmailAndPassword(auth, normalizedEmail, form.password)
+            onLoginSuccess(credentials.user)
+        } catch (error) {
+            setErrorMessage(getLoginErrorMessage(error))
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     return (
@@ -33,8 +76,7 @@ function LoginPage({ onBack, onLoginSuccess, onOpenSignup }) {
                                 Sign in to continue.
                             </h1>
                             <p className="max-w-lg text-base leading-7 text-slate-300">
-                                Use any email and password you want. This is frontend-only and every input
-                                works locally.
+                                Sign in with the Firebase account connected to this project.
                             </p>
                         </div>
                     </div>
@@ -52,7 +94,7 @@ function LoginPage({ onBack, onLoginSuccess, onOpenSignup }) {
                                 />
                             </FormField>
 
-                            <FormField label="Password" hint="No backend validation yet">
+                            <FormField label="Password" hint="Firebase Auth validates this">
                                 <input
                                     className="auth-input"
                                     name="password"
@@ -74,11 +116,12 @@ function LoginPage({ onBack, onLoginSuccess, onOpenSignup }) {
                             </div>
 
                             <button className="btn-primary w-full" type="submit">
-                                Log in
+                                {isSubmitting ? 'Logging in...' : 'Log in'}
                             </button>
                             <button className="btn-secondary w-full" onClick={onOpenSignup} type="button">
                                 Create a new account
                             </button>
+                            {errorMessage ? <div className="text-sm text-rose-300">{errorMessage}</div> : null}
                         </div>
                     </form>
                 </section>
