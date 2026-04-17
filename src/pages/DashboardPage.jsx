@@ -36,6 +36,7 @@ const initialAddFriendForm = {
 const initialCreateGroupForm = {
     name: '',
     description: '',
+    selectedFriendIds: [],
 }
 
 const initialExpenseForm = {
@@ -92,6 +93,7 @@ function DashboardPage({ userId, userName, onLogout }) {
     const [addFriendForm, setAddFriendForm] = useState(initialAddFriendForm)
     const [createGroupForm, setCreateGroupForm] = useState(initialCreateGroupForm)
     const [groupSearch, setGroupSearch] = useState('')
+    const [selectedFriendId, setSelectedFriendId] = useState('')
     const [selectedGroupId, setSelectedGroupId] = useState('')
     const [expenseForm, setExpenseForm] = useState(initialExpenseForm)
     const [notice, setNotice] = useState(
@@ -139,20 +141,10 @@ function DashboardPage({ userId, userName, onLogout }) {
         )
     }, [groupsWithBalances, selectedGroupId])
 
-    const groupMemberOptions = useMemo(() => {
-        const memberMap = new Map([[currentUserMember.id, currentUserMember]])
-
-        friends.forEach((friend) => {
-            if (!friend.id || memberMap.has(friend.id)) return
-            memberMap.set(friend.id, {
-                id: friend.id,
-                name: friend.name,
-                email: friend.email,
-            })
-        })
-
-        return Array.from(memberMap.values())
-    }, [currentUserMember, friends])
+    const selectedFriend = useMemo(() => {
+        if (!friends.length || !selectedFriendId) return null
+        return friends.find((friend) => friend.id === selectedFriendId) || null
+    }, [friends, selectedFriendId])
 
     useEffect(() => {
         let isActive = true
@@ -210,6 +202,13 @@ function DashboardPage({ userId, userName, onLogout }) {
         setExpenseForm(buildDefaultExpenseForm(selectedGroupRecord))
     }, [selectedGroupRecord])
 
+    useEffect(() => {
+        if (!selectedFriendId) return
+        if (!friends.some((friend) => friend.id === selectedFriendId)) {
+            setSelectedFriendId('')
+        }
+    }, [friends, selectedFriendId])
+
     const handleAddFriendChange = (event) => {
         const { name, value } = event.target
         setAddFriendForm((current) => ({ ...current, [name]: value }))
@@ -236,23 +235,48 @@ function DashboardPage({ userId, userName, onLogout }) {
 
     const handleCreateGroupChange = (event) => {
         const { name, value } = event.target
-        setCreateGroupForm((current) => ({ ...current, [name]: value }))
+        setCreateGroupForm((current) => ({
+            ...(current || initialCreateGroupForm),
+            [name]: value,
+        }))
+    }
+
+    const handleCreateGroupFriendToggle = (friendId) => {
+        setCreateGroupForm((current) => {
+            const selectedFriendIds = current?.selectedFriendIds || []
+            const isSelected = selectedFriendIds.includes(friendId)
+
+            return {
+                ...(current || initialCreateGroupForm),
+                selectedFriendIds: isSelected
+                    ? selectedFriendIds.filter((id) => id !== friendId)
+                    : [...selectedFriendIds, friendId],
+            }
+        })
     }
 
     const handleCreateGroupSubmit = async (event) => {
         event.preventDefault()
 
-        const name = createGroupForm.name.trim()
+        const name = (createGroupForm?.name || '').trim()
         if (!name) {
             setNotice('Please enter a group name.')
             return
         }
 
+        const selectedFriendMembers = friends
+            .filter((friend) => (createGroupForm?.selectedFriendIds || []).includes(friend.id))
+            .map((friend) => ({
+                id: friend.id,
+                name: friend.name,
+                email: friend.email,
+            }))
+
         try {
             await createGroupRecord(userId, {
                 name,
-                description: createGroupForm.description,
-                members: groupMemberOptions,
+                description: createGroupForm?.description || '',
+                members: [currentUserMember, ...selectedFriendMembers],
             })
             setCreateGroupForm(initialCreateGroupForm)
             setNotice('Group saved to Firebase.')
@@ -475,9 +499,6 @@ function DashboardPage({ userId, userName, onLogout }) {
                                     <button className="btn-primary" onClick={() => setActiveTab('add-friend')} type="button">
                                         Add friend
                                     </button>
-                                    <button className="btn-secondary" onClick={() => setActiveTab('friend-profile')} type="button">
-                                        Friend profile
-                                    </button>
                                 </div>
 
                                 <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
@@ -490,6 +511,10 @@ function DashboardPage({ userId, userName, onLogout }) {
                                     <FriendsList
                                         friends={friends}
                                         isLoading={friendsLoading}
+                                        onSelectFriend={(friend) => {
+                                            setSelectedFriendId(friend.id)
+                                            setActiveTab('friend-profile')
+                                        }}
                                         onDeleteFriend={async (friendId) => {
                                             const confirmed = window.confirm('Delete this friend from Firebase?')
                                             if (!confirmed) return
@@ -535,9 +560,30 @@ function DashboardPage({ userId, userName, onLogout }) {
                                 </button>
                                 <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                                     <h2 className="text-lg font-semibold text-white">Friend Profile</h2>
-                                    <p className="mt-2 text-sm leading-6 text-slate-300">
-                                        Profile details will appear here once backend data is connected.
-                                    </p>
+                                    {selectedFriend ? (
+                                        <div className="mt-4 space-y-3 text-sm">
+                                            <div>
+                                                <div className="text-xs text-slate-400">Name</div>
+                                                <div className="text-base font-semibold text-white">{selectedFriend.name}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-slate-400">Email</div>
+                                                <div className="text-slate-200">{selectedFriend.email || 'No email added'}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-slate-400">Status</div>
+                                                <div className="text-slate-200">{selectedFriend.status || 'Active'}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-slate-400">Note</div>
+                                                <div className="text-slate-200">{selectedFriend.note || 'No note added'}</div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                                            Select a friend from the Friends list to view their profile.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -546,7 +592,14 @@ function DashboardPage({ userId, userName, onLogout }) {
                             <div className="space-y-5">
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                     <h2 className="text-2xl font-semibold text-white">Groups</h2>
-                                    <button className="btn-secondary" onClick={() => setActiveTab('create-group')} type="button">
+                                    <button
+                                        className="btn-secondary"
+                                        onClick={() => {
+                                            setCreateGroupForm(initialCreateGroupForm)
+                                            setActiveTab('create-group')
+                                        }}
+                                        type="button"
+                                    >
                                         + New Group
                                     </button>
                                 </div>
@@ -644,7 +697,7 @@ function DashboardPage({ userId, userName, onLogout }) {
                                                 onChange={handleCreateGroupChange}
                                                 placeholder="Roommates"
                                                 type="text"
-                                                value={createGroupForm.name}
+                                                value={createGroupForm?.name || ''}
                                             />
                                         </FormField>
 
@@ -655,9 +708,46 @@ function DashboardPage({ userId, userName, onLogout }) {
                                                 onChange={handleCreateGroupChange}
                                                 placeholder="Trips, rent, or shared meals"
                                                 type="text"
-                                                value={createGroupForm.description}
+                                                value={createGroupForm?.description || ''}
                                             />
                                         </FormField>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                        <div className="mb-2 text-sm font-semibold text-white">Select friends</div>
+                                        <p className="mb-3 text-xs text-slate-400">You are included automatically in every group.</p>
+
+                                        {friendsLoading ? (
+                                            <div className="rounded-xl border border-dashed border-white/20 px-3 py-4 text-sm text-slate-400">
+                                                Loading friends...
+                                            </div>
+                                        ) : friends.length ? (
+                                            <div className="grid gap-2 sm:grid-cols-2">
+                                                {friends.map((friend) => {
+                                                    const selectedFriendIds = createGroupForm?.selectedFriendIds || []
+                                                    const isChecked = selectedFriendIds.includes(friend.id)
+
+                                                    return (
+                                                        <label
+                                                            key={friend.id}
+                                                            className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200"
+                                                        >
+                                                            <input
+                                                                checked={isChecked}
+                                                                className="h-4 w-4"
+                                                                onChange={() => handleCreateGroupFriendToggle(friend.id)}
+                                                                type="checkbox"
+                                                            />
+                                                            <span>{friend.name}</span>
+                                                        </label>
+                                                    )
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-xl border border-dashed border-white/20 px-3 py-4 text-sm text-slate-400">
+                                                No friends yet. Add friends first, or create a solo group.
+                                            </div>
+                                        )}
                                     </div>
 
                                     <button className="btn-primary" type="submit">
