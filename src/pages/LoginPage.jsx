@@ -33,8 +33,7 @@ function LoginPage({ onBack, onLoginSuccess, onOpenSignup }) {
                                 Sign in to continue.
                             </h1>
                             <p className="max-w-lg text-base leading-7 text-slate-300">
-                                Use any email and password you want. This is frontend-only and every input
-                                works locally.
+                                Use any email and password you want. Every input works locally.
                             </p>
                         </div>
                     </div>

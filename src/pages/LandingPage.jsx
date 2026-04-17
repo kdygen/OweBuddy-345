@@ -1,5 +1,4 @@
 import FeatureCard from '../components/FeatureCard'
-import StatCard from '../components/StatCard'
 
 const features = [
     {
@@ -11,15 +10,9 @@ const features = [
         description: 'Move from landing to login or sign up in a single tap.',
     },
     {
-        title: 'Frontend only for now',
-        description: 'The forms work locally and can be connected to a backend later.',
+        title: 'Ready to connect',
+        description: 'The current flows are set up and can be connected to backend APIs later.',
     },
-]
-
-const stats = [
-    { value: '0', label: 'backend required' },
-    { value: '0', label: 'core screens' },
-    { value: '0', label: 'local interaction' },
 ]
 
 function LandingPage({ onLogin, onSignup }) {
@@ -77,18 +70,12 @@ function LandingPage({ onLogin, onSignup }) {
                             </button>
                         </div>
 
-                        <div className="grid gap-4 sm:grid-cols-3">
-                            {stats.map((item) => (
-                                <StatCard key={item.label} label={item.label} value={item.value} />
-                            ))}
-                        </div>
                     </div>
 
                     <div className="space-y-5">
                         <div className="glass-card rounded-[2rem] p-6 sm:p-8">
                             <div className="flex items-center justify-between text-sm text-slate-300">
                                 <span>What you get</span>
-                                <span>Frontend only</span>
                             </div>
 
                             <div className="mt-6 space-y-4">
@@ -100,17 +87,6 @@ function LandingPage({ onLogin, onSignup }) {
                                     />
                                 ))}
                             </div>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <button className="glass-button" onClick={onLogin} type="button">
-                                <span className="text-sm text-slate-300">Already have an account?</span>
-                                <span className="mt-1 text-lg font-semibold text-white">Open login</span>
-                            </button>
-                            <button className="glass-button" onClick={onSignup} type="button">
-                                <span className="text-sm text-slate-300">New here?</span>
-                                <span className="mt-1 text-lg font-semibold text-white">Create account</span>
-                            </button>
                         </div>
                     </div>
                 </section>

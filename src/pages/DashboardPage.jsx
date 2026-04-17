@@ -88,7 +88,7 @@ const groupRecords = [
 
 function DashboardPage({ userName, onLogout }) {
     const [activeTab, setActiveTab] = useState('overview')
-    const [theme, setTheme] = useState('dark')
+    const [theme, setTheme] = useState('light')
     const [friends] = useState([])
     const [addFriendForm, setAddFriendForm] = useState(initialAddFriendForm)
     const [createGroupForm, setCreateGroupForm] = useState(initialCreateGroupForm)
@@ -309,6 +309,10 @@ function DashboardPage({ userName, onLogout }) {
         }
     }, [])
 
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme)
+    }, [theme])
+
     const toggleTheme = () => {
         setTheme((currentTheme) => {
             const nextTheme = currentTheme === 'dark' ? 'light' : 'dark'
@@ -332,6 +336,7 @@ function DashboardPage({ userName, onLogout }) {
                 <div className="grid flex-1 gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
                     <DashboardSidebar
                         activeTab={activeTab}
+                        isDarkTheme={isDarkTheme}
                         onChangeTab={setActiveTab}
                         onLogout={onLogout}
                         userName={userName}
@@ -340,7 +345,6 @@ function DashboardPage({ userName, onLogout }) {
                     <section className="p-2 sm:p-4 lg:p-6">
                         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                <div className="text-sm text-slate-400">Split Share</div>
                                 <h1 className="text-3xl font-semibold text-white sm:text-4xl">
                                     {screenTitles[activeTab]}
                                 </h1>
