@@ -1,4 +1,4 @@
-function FriendsList({ friends, isLoading = false, onDeleteFriend }) {
+function FriendsList({ friends, isLoading = false, onDeleteFriend, onSelectFriend }) {
     if (isLoading) {
         return (
             <div className="rounded-3xl border border-dashed border-white/15 bg-white/5 px-5 py-8 text-center">
@@ -24,7 +24,10 @@ function FriendsList({ friends, isLoading = false, onDeleteFriend }) {
             {friends.map((friend) => (
                 <div
                     key={friend.id}
-                    className="rounded-3xl border border-white/10 bg-white/5 px-4 py-4 transition hover:bg-white/10"
+                    className={`rounded-3xl border border-white/10 bg-white/5 px-4 py-4 transition hover:bg-white/10 ${
+                        onSelectFriend ? 'cursor-pointer' : ''
+                    }`}
+                    onClick={onSelectFriend ? () => onSelectFriend(friend) : undefined}
                 >
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
@@ -39,7 +42,10 @@ function FriendsList({ friends, isLoading = false, onDeleteFriend }) {
                             {onDeleteFriend ? (
                                 <button
                                     className="btn-secondary"
-                                    onClick={() => onDeleteFriend(friend.id)}
+                                    onClick={(event) => {
+                                        event.stopPropagation()
+                                        onDeleteFriend(friend.id)
+                                    }}
                                     type="button"
                                 >
                                     Delete
