@@ -433,6 +433,7 @@ function DashboardPage({ userId, userName, onLogout }) {
                         isDarkTheme={isDarkTheme}
                         onChangeTab={setActiveTab}
                         onLogout={onLogout}
+                        onToggleTheme={toggleTheme}
                         userName={userName}
                     />
 
@@ -446,25 +447,6 @@ function DashboardPage({ userId, userName, onLogout }) {
                                     Manage your shared balances with a simple frontend dashboard.
                                 </p>
                             </div>
-
-                            <button
-                                aria-label={isDarkTheme ? 'Switch to light mode' : 'Switch to dark mode'}
-                                className="sidebar-button flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white transition hover:border-amber-300/60 hover:bg-amber-300/10 hover:text-black"
-                                onClick={toggleTheme}
-                                type="button"
-                                title={isDarkTheme ? 'Light mode' : 'Dark mode'}
-                            >
-                                {isDarkTheme ? (
-                                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-[2]">
-                                        <path d="M12 3v2M12 19v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M3 12h2M19 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeLinecap="round" />
-                                        <circle cx="12" cy="12" r="4" />
-                                    </svg>
-                                ) : (
-                                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-[2]">
-                                        <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 1 0 9.8 9.8Z" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                )}
-                            </button>
 
                             {notice ? (
                                 <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">

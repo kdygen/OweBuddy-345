@@ -6,13 +6,32 @@ const items = [
     { key: 'friends', label: 'Friends' },
 ]
 
-function DashboardSidebar({ activeTab, onChangeTab, onLogout, userName, isDarkTheme }) {
+function DashboardSidebar({ activeTab, onChangeTab, onLogout, onToggleTheme, userName, isDarkTheme }) {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
 
     return (
         <aside className="rounded-3xl border border-white/10 bg-white/5 p-4">
-            <div className="border-b border-white/10 pb-4">
+            <div className="flex items-center gap-3 border-b border-white/10 pb-4">
                 <h2 className="text-lg font-semibold text-white">Owebuddy</h2>
+
+                <button
+                    aria-label={isDarkTheme ? 'Switch to light mode' : 'Switch to dark mode'}
+                    className="sidebar-button ml-10 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white transition hover:border-amber-300/60 hover:bg-amber-300/10 hover:text-black"
+                    onClick={onToggleTheme}
+                    type="button"
+                    title={isDarkTheme ? 'Light mode' : 'Dark mode'}
+                >
+                    {isDarkTheme ? (
+                        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-[2]">
+                            <path d="M12 3v2M12 19v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M3 12h2M19 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeLinecap="round" />
+                            <circle cx="12" cy="12" r="4" />
+                        </svg>
+                    ) : (
+                        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-[2]">
+                            <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 1 0 9.8 9.8Z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    )}
+                </button>
             </div>
 
             <div className="mt-4 space-y-2">
