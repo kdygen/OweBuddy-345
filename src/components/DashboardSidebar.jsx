@@ -6,13 +6,13 @@ const items = [
     { key: 'friends', label: 'Friends' },
 ]
 
-function DashboardSidebar({ activeTab, onChangeTab, onLogout, userName }) {
+function DashboardSidebar({ activeTab, onChangeTab, onLogout, userName, isDarkTheme }) {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
 
     return (
         <aside className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="border-b border-white/10 pb-4">
-                <h2 className="text-lg font-semibold text-white">Split Share</h2>
+                <h2 className="text-lg font-semibold text-white">Owebuddy</h2>
             </div>
 
             <div className="mt-4 space-y-2">
@@ -46,7 +46,11 @@ function DashboardSidebar({ activeTab, onChangeTab, onLogout, userName }) {
                 </button>
 
                 {isProfileMenuOpen ? (
-                    <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 rounded-xl border border-white/10 bg-[#111827] p-2 shadow-2xl">
+                    <div
+                        className={`absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 rounded-xl border border-white/10 p-2 shadow-2xl ${
+                            isDarkTheme ? 'bg-[#111827]' : 'bg-white'
+                        }`}
+                    >
                         <div className="border-b border-white/10 px-2 pb-2 text-xs text-slate-400">{userName}</div>
                         <button
                             className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-amber-300/10"
