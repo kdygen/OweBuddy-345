@@ -5,11 +5,13 @@ import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import { auth } from './lib/firebase'
+import { ensureUserProfileRecord } from './services/owebuddyFirestore'
 
 function App() {
     const [screen, setScreen] = useState('landing')
     const [userName, setUserName] = useState('Guest user')
     const [userId, setUserId] = useState('')
+    const [userEmail, setUserEmail] = useState('')
     const [authReady, setAuthReady] = useState(false)
 
     useEffect(() => {
@@ -18,14 +20,23 @@ function App() {
             return undefined
         }
 
-        return onAuthStateChanged(auth, (user) => {
+        return onAuthStateChanged(auth, async (user) => {
             if (user) {
                 setUserId(user.uid)
                 setUserName(user.displayName?.trim() || user.email?.trim() || 'Guest user')
+                setUserEmail(user.email?.trim() || '')
+
+                try {
+                    await ensureUserProfileRecord(user)
+                } catch (error) {
+                    console.error('Failed to sync user profile record', error)
+                }
+
                 setScreen('dashboard')
             } else {
                 setUserId('')
                 setUserName('Guest user')
+                setUserEmail('')
                 setScreen('landing')
             }
 
@@ -36,6 +47,7 @@ function App() {
     const openDashboard = (user) => {
         setUserId(user.uid)
         setUserName(user.displayName?.trim() || user.email?.trim() || 'Guest user')
+        setUserEmail(user.email?.trim() || '')
         setScreen('dashboard')
     }
 
@@ -75,7 +87,7 @@ function App() {
             )}
 
             {screen === 'dashboard' && (
-                <DashboardPage onLogout={handleLogout} userId={userId} userName={userName} />
+                <DashboardPage onLogout={handleLogout} userEmail={userEmail} userId={userId} userName={userName} />
             )}
         </>
     )

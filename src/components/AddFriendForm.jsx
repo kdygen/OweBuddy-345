@@ -32,13 +32,13 @@ function AddFriendForm({ form, onChange, onSubmit }) {
                     className="auth-input min-h-28 resize-none"
                     name="note"
                     onChange={onChange}
-                    placeholder="Lunch, rent, trip, anything"
+                    placeholder="Hey, let\'s track expenses together"
                     value={form.note}
                 />
             </FormField>
 
             <button className="btn-primary w-full sm:w-auto" type="submit">
-                Add friend
+                Send request
             </button>
         </form>
     )

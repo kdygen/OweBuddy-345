@@ -6,12 +6,15 @@ import FriendsList from '../components/FriendsList'
 import StaggeredMenu from '../components/StaggeredMenu'
 import { hasFirebaseConfig } from '../lib/firebase'
 import {
+    acceptFriendRequest,
+    declineFriendRequest,
     deleteFriendRecord,
     deleteGroupRecord,
     createFriendRecord,
     createGroupRecord,
     updateGroupExpenses,
     watchUserFriends,
+    watchUserFriendRequests,
     watchUserGroups,
 } from '../services/owebuddyFirestore'
 import { calculateGroupBalances } from '../utils/groupBalances'
@@ -29,7 +32,6 @@ const screenTitles = {
 }
 
 const initialAddFriendForm = {
-    name: '',
     email: '',
     note: '',
 }
@@ -69,6 +71,7 @@ const buildDefaultExpenseForm = (group) => {
 
 const normalizeFriendRecord = (friend) => ({
     id: friend.id,
+    userId: friend.userId,
     name: friend.name?.trim() || friend.email?.trim() || 'Unnamed friend',
     email: friend.email?.trim() || '',
     note: friend.note?.trim() || '',
@@ -77,7 +80,7 @@ const normalizeFriendRecord = (friend) => ({
 
 const normalizeGroupRecord = (group) => ({
     id: group.id,
-    ownerId: group.ownerId,
+    createdBy: group.createdBy,
     name: group.name?.trim() || 'Untitled group',
     description: group.description?.trim() || '',
     members: Array.isArray(group.members) ? group.members : [],
@@ -127,6 +130,7 @@ function DashboardPage({ userId, userName, onLogout }) {
     const [groups, setGroups] = useState([])
     const [friendsLoading, setFriendsLoading] = useState(true)
     const [groupsLoading, setGroupsLoading] = useState(true)
+    const [friendRequests, setFriendRequests] = useState({ incoming: [], outgoing: [] })
     const [addFriendForm, setAddFriendForm] = useState(initialAddFriendForm)
     const [createGroupForm, setCreateGroupForm] = useState(initialCreateGroupForm)
     const [groupSearch, setGroupSearch] = useState('')
@@ -139,7 +143,10 @@ function DashboardPage({ userId, userName, onLogout }) {
             : 'Firebase is not configured yet. Add the VITE_FIREBASE_* variables to connect the dashboard.',
     )
 
-    const currentUserMember = useMemo(() => ({ id: userId, name: userName }), [userId, userName])
+    const currentUserMember = useMemo(
+        () => ({ id: userId, name: userName, email: userEmail || '' }),
+        [userEmail, userId, userName],
+    )
 
     const selectedGroupRecord = useMemo(() => {
         if (!groups.length) return null
@@ -232,10 +239,23 @@ function DashboardPage({ userId, userName, onLogout }) {
             },
         )
 
+        const unsubscribeFriendRequests = watchUserFriendRequests(
+            userId,
+            (nextFriendRequests) => {
+                if (!isActive) return
+                setFriendRequests(nextFriendRequests)
+            },
+            (error) => {
+                if (!isActive) return
+                setNotice(error.message)
+            },
+        )
+
         return () => {
             isActive = false
             unsubscribeFriends()
             unsubscribeGroups()
+            unsubscribeFriendRequests()
         }
     }, [userId])
 
@@ -269,17 +289,33 @@ function DashboardPage({ userId, userName, onLogout }) {
     const handleAddFriendSubmit = async (event) => {
         event.preventDefault()
 
-        const name = addFriendForm.name.trim() || addFriendForm.email.trim() || 'New friend'
-
         try {
             await createFriendRecord(userId, {
-                name,
+                name: userName,
+                requesterEmail: userEmail,
                 email: addFriendForm.email,
                 note: addFriendForm.note,
-                status: 'Active',
             })
             setAddFriendForm(initialAddFriendForm)
-            setNotice('Friend saved to Firebase.')
+            setNotice('Friend request sent.')
+        } catch (error) {
+            setNotice(error.message)
+        }
+    }
+
+    const handleAcceptFriendRequest = async (requestId) => {
+        try {
+            await acceptFriendRequest(requestId, userId)
+            setNotice('Friend request accepted. You can now add this friend to groups.')
+        } catch (error) {
+            setNotice(error.message)
+        }
+    }
+
+    const handleDeclineFriendRequest = async (requestId) => {
+        try {
+            await declineFriendRequest(requestId, userId)
+            setNotice('Friend request declined.')
         } catch (error) {
             setNotice(error.message)
         }
@@ -317,9 +353,9 @@ function DashboardPage({ userId, userName, onLogout }) {
         }
 
         const selectedFriendMembers = friends
-            .filter((friend) => (createGroupForm?.selectedFriendIds || []).includes(friend.id))
+            .filter((friend) => (createGroupForm?.selectedFriendIds || []).includes(friend.userId))
             .map((friend) => ({
-                id: friend.id,
+                id: friend.userId,
                 name: friend.name,
                 email: friend.email,
             }))
@@ -329,6 +365,8 @@ function DashboardPage({ userId, userName, onLogout }) {
                 name,
                 description: createGroupForm?.description || '',
                 members: [currentUserMember, ...selectedFriendMembers],
+                ownerName: userName,
+                ownerEmail: userEmail,
             })
             setCreateGroupForm(initialCreateGroupForm)
             setNotice('Group saved to Firebase.')
@@ -645,12 +683,81 @@ function DashboardPage({ userId, userName, onLogout }) {
 
                                             try {
                                                 await deleteFriendRecord(friendId)
-                                                setNotice('Friend deleted from Firebase Firestore: friends.')
+                                                setNotice('Friend connection removed.')
                                             } catch (error) {
                                                 setNotice(error.message)
                                             }
                                         }}
                                     />
+                                </div>
+
+                                <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <h2 className="text-lg font-semibold text-white">Incoming requests</h2>
+                                        <span className="text-sm text-slate-400">{friendRequests.incoming.length} pending</span>
+                                    </div>
+
+                                    {friendRequests.incoming.length ? (
+                                        <div className="space-y-3">
+                                            {friendRequests.incoming.map((request) => (
+                                                <div
+                                                    key={request.id}
+                                                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                                                >
+                                                    <div>
+                                                        <div className="font-semibold text-white">{request.requesterName}</div>
+                                                        <div className="text-sm text-slate-400">{request.requesterEmail}</div>
+                                                    </div>
+
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            className="btn-primary"
+                                                            onClick={() => handleAcceptFriendRequest(request.id)}
+                                                            type="button"
+                                                        >
+                                                            Accept
+                                                        </button>
+                                                        <button
+                                                            className="btn-secondary"
+                                                            onClick={() => handleDeclineFriendRequest(request.id)}
+                                                            type="button"
+                                                        >
+                                                            Decline
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-2xl border border-dashed border-white/20 px-4 py-6 text-sm text-slate-400">
+                                            No incoming requests.
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <h2 className="text-lg font-semibold text-white">Sent requests</h2>
+                                        <span className="text-sm text-slate-400">{friendRequests.outgoing.length} pending</span>
+                                    </div>
+
+                                    {friendRequests.outgoing.length ? (
+                                        <div className="space-y-3">
+                                            {friendRequests.outgoing.map((request) => (
+                                                <div
+                                                    key={request.id}
+                                                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                                                >
+                                                    <div className="font-semibold text-white">{request.recipientName}</div>
+                                                    <div className="text-sm text-slate-400">{request.recipientEmail}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-2xl border border-dashed border-white/20 px-4 py-6 text-sm text-slate-400">
+                                            No pending sent requests.
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -831,7 +938,7 @@ function DashboardPage({ userId, userName, onLogout }) {
 
                                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                                         <div className="mb-2 text-sm font-semibold text-white">Select friends</div>
-                                        <p className="mb-3 text-xs text-slate-400">You are included automatically in every group.</p>
+                                        <p className="mb-3 text-xs text-slate-400">Only accepted friends can be added. You are included automatically in every group.</p>
 
                                         {friendsLoading ? (
                                             <div className="rounded-xl border border-dashed border-white/20 px-3 py-4 text-sm text-slate-400">
@@ -851,7 +958,7 @@ function DashboardPage({ userId, userName, onLogout }) {
                                                             <input
                                                                 checked={isChecked}
                                                                 className="h-4 w-4"
-                                                                onChange={() => handleCreateGroupFriendToggle(friend.id)}
+                                                                onChange={() => handleCreateGroupFriendToggle(friend.userId)}
                                                                 type="checkbox"
                                                             />
                                                             <span>{friend.name}</span>
