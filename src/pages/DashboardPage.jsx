@@ -32,6 +32,7 @@ const screenTitles = {
 }
 
 const initialAddFriendForm = {
+    name: '',
     email: '',
     note: '',
 }
@@ -123,7 +124,7 @@ const ProfileIcon = () => (
     </svg>
 )
 
-function DashboardPage({ userId, userName, onLogout }) {
+function DashboardPage({ userId, userName, userEmail, onLogout }) {
     const [activeTab, setActiveTab] = useState('overview')
     const [theme, setTheme] = useState('light')
     const [friends, setFriends] = useState([])
@@ -948,7 +949,7 @@ function DashboardPage({ userId, userName, onLogout }) {
                                             <div className="grid gap-2 sm:grid-cols-2">
                                                 {friends.map((friend) => {
                                                     const selectedFriendIds = createGroupForm?.selectedFriendIds || []
-                                                    const isChecked = selectedFriendIds.includes(friend.id)
+                                                    const isChecked = selectedFriendIds.includes(friend.userId)
 
                                                     return (
                                                         <label
