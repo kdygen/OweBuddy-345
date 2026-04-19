@@ -6,8 +6,8 @@ export function calculateGroupBalances(group, currentUser = 'You', currentUserId
     const expenses = Array.isArray(group.expenses) ? group.expenses : []
     const memberNameById = new Map(members.map((member) => [member.id, member.name]))
     const balanceByMemberId = new Map(members.map((member) => [member.id, 0]))
-
     const currentUserMember =
+
         members.find((member) => member.id === currentUserId) ||
         members.find((member) => member.name === currentUser)
     const currentUserMemberId = currentUserMember?.id

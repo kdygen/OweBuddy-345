@@ -3,19 +3,31 @@ import FormField from './FormField'
 function AddFriendForm({ form, onChange, onSubmit }) {
     return (
         <form className="space-y-5" onSubmit={onSubmit}>
-            <FormField label="Friend email" hint="Must match an existing OweBuddy account">
-                <input
-                    className="auth-input"
-                    name="email"
-                    onChange={onChange}
-                    placeholder="jordan@example.com"
-                    required
-                    type="email"
-                    value={form.email}
-                />
-            </FormField>
+            <div className="grid gap-4 sm:grid-cols-2">
+                <FormField label="Friend name">
+                    <input
+                        className="auth-input"
+                        name="name"
+                        onChange={onChange}
+                        placeholder="Jordan"
+                        type="text"
+                        value={form.name}
+                    />
+                </FormField>
 
-            <FormField label="Message" hint="Optional note with your friend request">
+                <FormField label="Email address">
+                    <input
+                        className="auth-input"
+                        name="email"
+                        onChange={onChange}
+                        placeholder="jordan@example.com"
+                        type="email"
+                        value={form.email}
+                    />
+                </FormField>
+            </div>
+
+            <FormField label="Note">
                 <textarea
                     className="auth-input min-h-28 resize-none"
                     name="note"

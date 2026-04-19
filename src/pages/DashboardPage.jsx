@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import AddFriendForm from '../components/AddFriendForm'
-import DashboardSidebar from '../components/DashboardSidebar'
+import Dock from '../components/Dock'
 import FormField from '../components/FormField'
 import FriendsList from '../components/FriendsList'
+import StaggeredMenu from '../components/StaggeredMenu'
 import { hasFirebaseConfig } from '../lib/firebase'
 import {
     acceptFriendRequest,
@@ -19,7 +20,7 @@ import {
 import { calculateGroupBalances } from '../utils/groupBalances'
 
 const screenTitles = {
-    overview: 'Dashboard overview',
+    overview: 'Home',
     friends: 'Friends',
     'add-friend': 'Add friend',
     'friend-profile': 'Friend profile',
@@ -86,7 +87,43 @@ const normalizeGroupRecord = (group) => ({
     expenses: Array.isArray(group.expenses) ? group.expenses : [],
 })
 
-function DashboardPage({ userId, userName, userEmail, onLogout }) {
+const DockGlyph = ({ children }) => (
+    <span className="flex h-5 w-5 items-center justify-center text-inherit">{children}</span>
+)
+
+const HomeIcon = () => (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8" aria-hidden="true">
+        <path d="M3 10.5 12 3l9 7.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M6.75 9.75V21h10.5V9.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+)
+
+const GroupIcon = () => (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8" aria-hidden="true">
+        <path d="M5 19h14" strokeLinecap="round" />
+        <path d="M6.5 19v-5.5h11V19" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 13.5V10h6v3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M11.25 10V7.5h1.5V10" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+)
+
+const FriendsIcon = () => (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8" aria-hidden="true">
+        <circle cx="9" cy="8" r="2.5" />
+        <circle cx="16" cy="9" r="2" />
+        <path d="M4.5 18.5c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5" strokeLinecap="round" />
+        <path d="M13 18.5c.1-1.8 1.5-3.2 3.3-3.2 1.8 0 3.2 1.4 3.2 3.2" strokeLinecap="round" />
+    </svg>
+)
+
+const ProfileIcon = () => (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8" aria-hidden="true">
+        <circle cx="12" cy="8" r="3" />
+        <path d="M5 19c0-3.1 3.1-5 7-5s7 1.9 7 5" strokeLinecap="round" />
+    </svg>
+)
+
+function DashboardPage({ userId, userName, onLogout }) {
     const [activeTab, setActiveTab] = useState('overview')
     const [theme, setTheme] = useState('light')
     const [friends, setFriends] = useState([])
@@ -130,13 +167,11 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
         const totalGroups = groupsWithBalances.length
         const totalYouOwe = groupsWithBalances.reduce((sum, group) => sum + group.youOwe, 0)
         const totalYouAreOwed = groupsWithBalances.reduce((sum, group) => sum + group.youAreOwed, 0)
-        const netBalance = totalYouAreOwed - totalYouOwe
 
         return {
             totalGroups,
             totalYouOwe,
             totalYouAreOwed,
-            netBalance,
         }
     }, [groupsWithBalances])
 
@@ -146,6 +181,23 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             groupsWithBalances.find((group) => group.id === selectedGroupId) ||
             groupsWithBalances[0]
         )
+    }, [groupsWithBalances, selectedGroupId])
+
+    const recentActivityGroups = useMemo(() => {
+        if (!groupsWithBalances.length) return []
+
+        const byExpenseCount = [...groupsWithBalances].sort(
+            (left, right) => (right.expenses?.length || 0) - (left.expenses?.length || 0),
+        )
+
+        if (!selectedGroupId) {
+            return byExpenseCount.slice(0, 3)
+        }
+
+        const selected = groupsWithBalances.find((group) => group.id === selectedGroupId)
+        const remaining = byExpenseCount.filter((group) => group.id !== selectedGroupId)
+
+        return [selected, ...remaining].filter(Boolean).slice(0, 3)
     }, [groupsWithBalances, selectedGroupId])
 
     const selectedFriend = useMemo(() => {
@@ -470,15 +522,46 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
         document.documentElement.setAttribute('data-theme', theme)
     }, [theme])
 
-    const toggleTheme = () => {
-        setTheme((currentTheme) => {
-            const nextTheme = currentTheme === 'dark' ? 'light' : 'dark'
-            window.localStorage.setItem('owebuddy-theme', nextTheme)
-            return nextTheme
-        })
-    }
-
     const isDarkTheme = theme === 'dark'
+
+    const staggeredMenuItems = [
+        { label: 'Home', ariaLabel: 'Go to home', link: '#home', onClick: () => setActiveTab('overview') },
+        { label: 'Groups', ariaLabel: 'Go to groups', link: '#groups', onClick: () => setActiveTab('groups') },
+        { label: 'Friends', ariaLabel: 'Go to friends', link: '#friends', onClick: () => setActiveTab('friends') },
+        { label: 'Profile', ariaLabel: 'Go to profile', link: '#profile', onClick: () => setActiveTab('profile') },
+        { label: 'Logout', ariaLabel: 'Log out', link: '#logout', onClick: onLogout },
+    ]
+
+    const dockItems = [
+        {
+            label: 'Home',
+            onClick: () => setActiveTab('overview'),
+            className: activeTab === 'overview' ? 'dock-item-active' : '',
+            icon: <DockGlyph><HomeIcon /></DockGlyph>,
+        },
+        {
+            label: 'Groups',
+            onClick: () => setActiveTab('groups'),
+            className: ['groups', 'create-group', 'group-details', 'add-expense'].includes(activeTab)
+                ? 'dock-item-active'
+                : '',
+            icon: <DockGlyph><GroupIcon /></DockGlyph>,
+        },
+        {
+            label: 'Friends',
+            onClick: () => setActiveTab('friends'),
+            className: ['friends', 'add-friend', 'friend-profile'].includes(activeTab)
+                ? 'dock-item-active'
+                : '',
+            icon: <DockGlyph><FriendsIcon /></DockGlyph>,
+        },
+        {
+            label: 'Profile',
+            onClick: () => setActiveTab('profile'),
+            className: activeTab === 'profile' ? 'dock-item-active' : '',
+            icon: <DockGlyph><ProfileIcon /></DockGlyph>,
+        },
+    ]
 
     return (
         <main
@@ -488,26 +571,35 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                 }`}
             data-theme={theme}
         >
-            <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-5 sm:px-8 lg:px-12">
-                <div className="grid flex-1 gap-6 xl:grid-cols-[220px_minmax(0,1fr)]">
-                    <DashboardSidebar
-                        activeTab={activeTab}
-                        isDarkTheme={isDarkTheme}
-                        onChangeTab={setActiveTab}
-                        onLogout={onLogout}
-                        onToggleTheme={toggleTheme}
-                        userName={userName}
-                    />
-
+            <StaggeredMenu
+                position="right"
+                items={staggeredMenuItems}
+                socialItems={[]}
+                displaySocials={false}
+                displayItemNumbering={true}
+                menuButtonColor={isDarkTheme ? '#f8fafc' : '#0f172a'}
+                openMenuButtonColor="#ffffff"
+                changeMenuColorOnOpen={true}
+                colors={['#0f172a', '#1e293b', '#111827']}
+                accentColor="#f97316"
+                isFixed={true}
+            />
+            <Dock items={dockItems} panelHeight={66} baseItemSize={48} magnification={76} distance={180} />
+            <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-5 pb-28 pt-5 sm:px-8 lg:px-12">
+                <div className="flex-1">
                     <section className="p-2 sm:p-4 lg:p-6">
                         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                <h1 className="text-3xl font-semibold text-white sm:text-4xl">
-                                    {screenTitles[activeTab]}
-                                </h1>
-                                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-                                    Manage your shared balances with a simple frontend dashboard.
-                                </p>
+                                {activeTab !== 'groups' ? (
+                                    <h1 className="text-3xl font-semibold text-white sm:text-4xl">
+                                        {screenTitles[activeTab]}
+                                    </h1>
+                                ) : null}
+                                {activeTab !== 'groups' && activeTab !== 'overview' && activeTab !== 'group-details' && activeTab !== 'friends' && activeTab !== 'add-friend' && activeTab !== 'profile' ? (
+                                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                                        Manage your shared balances with a simple frontend dashboard.
+                                    </p>
+                                ) : null}
                             </div>
 
                             {notice ? (
@@ -521,12 +613,44 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                             <div className="space-y-6">
                                 <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                                     <h2 className="text-xl font-semibold text-white">Welcome back</h2>
-                                    <p className="mt-2 text-sm text-slate-300">
-                                        {userName}, use the left menu to manage friends and groups.
-                                    </p>
-                                    <p className="mt-2 text-xs text-slate-400">
-                                        Stored in Firebase Firestore collections: users, friendships, friendRequests, and groups.
-                                    </p>
+                                </div>
+
+                                <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <h3 className="text-lg font-semibold text-white">Recent activity</h3>
+                                        <span className="text-xs text-slate-400">Top 3 groups</span>
+                                    </div>
+
+                                    {recentActivityGroups.length ? (
+                                        <div className="mt-4 space-y-3">
+                                            {recentActivityGroups.map((group) => {
+                                                const expenseCount = group.expenses?.length || 0
+
+                                                return (
+                                                    <button
+                                                        key={group.id}
+                                                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:border-amber-300/60 hover:bg-amber-300/10"
+                                                        onClick={() => {
+                                                            setSelectedGroupId(group.id)
+                                                            setActiveTab('group-details')
+                                                        }}
+                                                        type="button"
+                                                    >
+                                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                                            <div className="text-sm font-semibold text-white">{group.name}</div>
+                                                            <div className="text-xs text-slate-400">
+                                                                {group.membersCount} members · {expenseCount} expenses
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="mt-4 text-sm text-slate-400">
+                                            No groups yet. Create a group to start tracking activity.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -643,7 +767,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                     <div>
                                         <h2 className="text-lg font-semibold text-white">Add Friend</h2>
-                                        <p className="text-sm text-slate-400">Send a request to an existing account by email.</p>
                                     </div>
                                     <button className="btn-secondary" onClick={() => setActiveTab('friends')} type="button">
                                         Back to friends
@@ -711,7 +834,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                     </button>
                                 </div>
 
-                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                                         <div className="text-xs text-slate-400">Total Groups</div>
                                         <div className="mt-2 text-2xl font-semibold text-white">{groupStats.totalGroups}</div>
@@ -724,16 +847,9 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                         <div className="text-xs text-slate-400">You're Owed</div>
                                         <div className="mt-2 text-2xl font-semibold text-emerald-400">${groupStats.totalYouAreOwed}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                        <div className="text-xs text-slate-400">Net Balance</div>
-                                        <div className="mt-2 text-2xl font-semibold text-emerald-400">${groupStats.netBalance}</div>
-                                    </div>
                                 </div>
 
                                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                    <label className="text-xs text-slate-400" htmlFor="group-search">
-                                        Search groups
-                                    </label>
                                     <input
                                         id="group-search"
                                         className="auth-input mt-2"
@@ -874,9 +990,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                     <>
                                         <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                                             <h2 className="text-lg font-semibold text-white">{selectedGroup.name} - Group Details</h2>
-                                            <p className="mt-2 text-sm leading-6 text-slate-300">
-                                                Add or edit expenses below. Balances and settlements recalculate instantly.
-                                            </p>
                                             <div className="mt-4 flex flex-wrap gap-3">
                                                 <button className="btn-primary" onClick={() => setActiveTab('add-expense')} type="button">
                                                     Add expense
@@ -1127,11 +1240,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                 <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                                     <div className="flex flex-wrap items-center justify-between gap-4">
                                         <div>
-                                            <div className="text-sm text-slate-400">Profile</div>
                                             <h2 className="text-2xl font-semibold text-white">{userName}</h2>
-                                            <p className="mt-2 text-sm leading-6 text-slate-300">
-                                                Manage your account from here.
-                                            </p>
                                         </div>
 
                                         <button className="btn-primary" onClick={onLogout} type="button">
