@@ -4,7 +4,7 @@ function AddFriendForm({ form, onChange, onSubmit }) {
     return (
         <form className="space-y-5" onSubmit={onSubmit}>
             <div className="grid gap-4 sm:grid-cols-2">
-                <FormField label="Friend name" hint="Anything is allowed here">
+                <FormField label="Friend name">
                     <input
                         className="auth-input"
                         name="name"
@@ -15,7 +15,7 @@ function AddFriendForm({ form, onChange, onSubmit }) {
                     />
                 </FormField>
 
-                <FormField label="Email address" hint="Optional for now">
+                <FormField label="Email address">
                     <input
                         className="auth-input"
                         name="email"
@@ -27,7 +27,7 @@ function AddFriendForm({ form, onChange, onSubmit }) {
                 </FormField>
             </div>
 
-            <FormField label="Note" hint="Add something helpful for later">
+            <FormField label="Note">
                 <textarea
                     className="auth-input min-h-28 resize-none"
                     name="note"
