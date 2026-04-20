@@ -48,7 +48,18 @@ const initialExpenseForm = {
     amount: '',
     paidByMemberId: '',
     owedByMemberIds: [],
+    splitMethod: 'equal',
+    shareAmounts: {},
     editExpenseId: null,
+}
+
+const buildShareAmountState = (group, values = {}) => {
+    const members = Array.isArray(group?.members) ? group.members : []
+
+    return members.reduce((accumulator, member) => {
+        accumulator[member.id] = values[member.id] ?? ''
+        return accumulator
+    }, {})
 }
 
 const sortByName = (items) => [...items].sort((left, right) => left.name.localeCompare(right.name))
@@ -67,8 +78,30 @@ const buildDefaultExpenseForm = (group) => {
         amount: '',
         paidByMemberId: defaultPayerId,
         owedByMemberIds: defaultOwedByIds,
+        splitMethod: 'equal',
+        shareAmounts: buildShareAmountState(group),
         editExpenseId: null,
     }
+}
+
+const buildEqualSplitShares = (amount, memberIds) => {
+    const totalCents = Math.round(Number(amount || 0) * 100)
+    if (!totalCents || !Array.isArray(memberIds) || memberIds.length === 0) {
+        return []
+    }
+
+    const baseShareCents = Math.floor(totalCents / memberIds.length)
+    let remainderCents = totalCents % memberIds.length
+
+    return memberIds.map((memberId) => {
+        const shareCents = baseShareCents + (remainderCents > 0 ? 1 : 0)
+        if (remainderCents > 0) remainderCents -= 1
+
+        return {
+            memberId,
+            amount: Number((shareCents / 100).toFixed(2)),
+        }
+    })
 }
 
 const normalizeFriendRecord = (friend) => ({
@@ -139,6 +172,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
     const [selectedFriendId, setSelectedFriendId] = useState('')
     const [selectedGroupId, setSelectedGroupId] = useState('')
     const [expenseForm, setExpenseForm] = useState(initialExpenseForm)
+    const [notice, setNotice] = useState('')
 
     const currentUserMember = useMemo(
         () => ({ id: userId, name: userName, email: userEmail || '' }),
@@ -179,6 +213,60 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             groupsWithBalances[0]
         )
     }, [groupsWithBalances, selectedGroupId])
+
+    const expenseSplitSummary = useMemo(() => {
+        if (!selectedGroupRecord) return null
+
+        const total = Number(expenseForm.amount)
+        const participantIds = Array.isArray(expenseForm.owedByMemberIds) ? expenseForm.owedByMemberIds : []
+
+        if (!total || total <= 0 || !participantIds.length) {
+            return null
+        }
+
+        if (expenseForm.splitMethod === 'equal') {
+            const share = total / participantIds.length
+            return {
+                method: 'equal',
+                items: participantIds.map((memberId) => {
+                    const member = selectedGroupRecord.members.find((item) => item.id === memberId)
+                    return {
+                        memberId,
+                        name: member?.name || 'Unknown',
+                        amount: share,
+                    }
+                }),
+                total,
+            }
+        }
+
+        const items = participantIds
+            .map((memberId) => {
+                const member = selectedGroupRecord.members.find((item) => item.id === memberId)
+                const amount = Number(expenseForm.shareAmounts?.[memberId] || 0)
+                return {
+                    memberId,
+                    name: member?.name || 'Unknown',
+                    amount,
+                }
+            })
+
+        const customShareTotal = items.reduce((sum, item) => sum + (Number.isFinite(item.amount) ? item.amount : 0), 0)
+        const payerAmount = Math.max(0, total - customShareTotal)
+
+        return {
+            method: 'custom',
+            items: [
+                ...items,
+                {
+                    memberId: expenseForm.paidByMemberId,
+                    name: selectedGroupRecord.members.find((item) => item.id === expenseForm.paidByMemberId)?.name || 'Payer',
+                    amount: payerAmount,
+                },
+            ],
+            total: customShareTotal + payerAmount,
+        }
+    }, [expenseForm.amount, expenseForm.owedByMemberIds, expenseForm.shareAmounts, expenseForm.splitMethod, selectedGroupRecord])
 
     const recentActivityGroups = useMemo(() => {
         if (!groupsWithBalances.length) return []
@@ -291,24 +379,31 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                 note: addFriendForm.note,
             })
             setAddFriendForm(initialAddFriendForm)
+            setNotice('Friend request sent.')
+            setActiveTab('friends')
 
         } catch (error) {
+            setNotice(error.message)
         }
     }
 
     const handleAcceptFriendRequest = async (requestId) => {
         try {
             await acceptFriendRequest(requestId, userId)
+            setNotice('Friend request accepted.')
 
         } catch (error) {
+            setNotice(error.message)
         }
     }
 
     const handleDeclineFriendRequest = async (requestId) => {
         try {
             await declineFriendRequest(requestId, userId)
+            setNotice('Friend request declined.')
 
         } catch (error) {
+            setNotice(error.message)
         }
     }
 
@@ -332,6 +427,38 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                     : [...selectedFriendIds, friendId],
             }
         })
+    }
+
+    const handleExpenseSplitMethodChange = (event) => {
+        const splitMethod = event.target.value
+
+        setExpenseForm((current) => {
+            const base = current || initialExpenseForm
+            if (splitMethod === 'equal') {
+                return {
+                    ...base,
+                    splitMethod,
+                    shareAmounts: buildShareAmountState(selectedGroupRecord, base.shareAmounts),
+                }
+            }
+
+            return {
+                ...base,
+                splitMethod,
+                shareAmounts: buildShareAmountState(selectedGroupRecord, base.shareAmounts),
+            }
+        })
+    }
+
+    const handleShareAmountChange = (memberId, value) => {
+        setExpenseForm((current) => ({
+            ...(current || initialExpenseForm),
+            splitMethod: 'custom',
+            shareAmounts: {
+                ...(current?.shareAmounts || {}),
+                [memberId]: value,
+            },
+        }))
     }
 
     const handleCreateGroupSubmit = async (event) => {
@@ -360,9 +487,10 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                 ownerEmail: userEmail,
             })
             setCreateGroupForm(initialCreateGroupForm)
-
+            setNotice('Group saved.')
             setActiveTab('groups')
         } catch (error) {
+            setNotice(error.message)
         }
     }
 
@@ -377,6 +505,9 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             ...current,
             paidByMemberId,
             owedByMemberIds: current.owedByMemberIds.filter((memberId) => memberId !== paidByMemberId),
+            shareAmounts: Object.fromEntries(
+                Object.entries(current.shareAmounts || {}).filter(([memberId]) => memberId !== paidByMemberId),
+            ),
         }))
     }
 
@@ -388,6 +519,14 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                 owedByMemberIds: isSelected
                     ? current.owedByMemberIds.filter((id) => id !== memberId)
                     : [...current.owedByMemberIds, memberId],
+                shareAmounts: isSelected
+                    ? Object.fromEntries(
+                        Object.entries(current.shareAmounts || {}).filter(([id]) => id !== memberId),
+                    )
+                    : {
+                        ...(current.shareAmounts || {}),
+                        [memberId]: current.shareAmounts?.[memberId] || '',
+                    },
             }
         })
     }
@@ -419,11 +558,49 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             return
         }
 
+        let shares = []
+        if (expenseForm.splitMethod === 'custom') {
+            const customShares = expenseForm.owedByMemberIds.map((memberId) => ({
+                memberId,
+                amount: Number(expenseForm.shareAmounts?.[memberId] || 0),
+            }))
+
+            const invalidShare = customShares.some((share) => !Number.isFinite(share.amount) || share.amount < 0)
+            if (invalidShare) {
+                setNotice('Enter a valid amount for every custom split participant.')
+                return
+            }
+
+            const shareTotal = customShares.reduce((sum, share) => sum + share.amount, 0)
+            const payerShare = Number((amount - shareTotal).toFixed(2))
+
+            if (payerShare < 0) {
+                setNotice('Custom split amounts cannot be greater than the expense total.')
+                return
+            }
+
+            shares = [
+                ...customShares,
+                ...(payerShare > 0
+                    ? [{ memberId: expenseForm.paidByMemberId, amount: payerShare }]
+                    : []),
+            ]
+        } else {
+            const equalSplitParticipantIds = [
+                expenseForm.paidByMemberId,
+                ...expenseForm.owedByMemberIds,
+            ].filter(Boolean)
+
+            shares = buildEqualSplitShares(amount, equalSplitParticipantIds)
+        }
+
         const nextExpense = {
             id: expenseForm.editExpenseId || `exp-${Date.now()}`,
             amount,
             paidByMemberId: expenseForm.paidByMemberId,
             owedByMemberIds: expenseForm.owedByMemberIds,
+            splitMethod: expenseForm.splitMethod,
+            shares,
         }
 
         const nextExpenses = expenseForm.editExpenseId
@@ -435,8 +612,10 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
         try {
             await updateGroupExpenses(selectedGroupRecord.id, nextExpenses)
             resetExpenseForm()
+            setNotice(expenseForm.editExpenseId ? 'Expense updated.' : 'Expense added.')
             setActiveTab('group-details')
         } catch (error) {
+            setNotice(error.message)
         }
     }
 
@@ -452,8 +631,12 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             paidByMemberId: expense.paidByMemberId,
             owedByMemberIds:
                 Array.isArray(expense.owedByMemberIds) && expense.owedByMemberIds.length
-                    ? expense.owedByMemberIds
+                    ? expense.owedByMemberIds.filter((memberId) => memberId !== expense.paidByMemberId)
                     : defaultOwedByIds,
+            splitMethod: expense.splitMethod === 'custom' ? 'custom' : 'equal',
+            shareAmounts: buildShareAmountState(selectedGroupRecord, Object.fromEntries(
+                (Array.isArray(expense.shares) ? expense.shares : []).map((share) => [share.memberId, String(share.amount)]),
+            )),
             editExpenseId: expense.id,
         })
 
@@ -472,9 +655,11 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             if (expenseForm.editExpenseId === expenseId) {
                 resetExpenseForm()
             }
-
+            setNotice('Expense deleted.')
+            setActiveTab('group-details')
 
         } catch (error) {
+            setNotice(error.message)
         }
     }
 
@@ -596,6 +781,12 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                     </p>
                                 ) : null}
                             </div>
+
+                            {notice ? (
+                                <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
+                                    {notice}
+                                </div>
+                            ) : null}
 
 
                         </div>
@@ -1003,7 +1194,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                         )
                                                         const participantIds =
                                                             Array.isArray(expense.owedByMemberIds) && expense.owedByMemberIds.length
-                                                                ? expense.owedByMemberIds
+                                                                ? expense.owedByMemberIds.filter((memberId) => memberId !== expense.paidByMemberId)
                                                                 : selectedGroupRecord.members
                                                                     .filter((member) => member.id !== expense.paidByMemberId)
                                                                     .map((member) => member.id)
@@ -1012,6 +1203,26 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                                 selectedGroupRecord.members.find((member) => member.id === memberId),
                                                             )
                                                             .filter(Boolean)
+                                                        const isCustomSplit = expense.splitMethod === 'custom'
+                                                        const splitItems = isCustomSplit
+                                                            ? expense.shares
+                                                                .map((share) => {
+                                                                    const member = selectedGroupRecord.members.find((item) => item.id === share.memberId)
+                                                                    return {
+                                                                        name: member?.name || 'Unknown',
+                                                                        amount: Number(share.amount || 0),
+                                                                    }
+                                                                })
+                                                            : [expense.paidByMemberId, ...participantIds]
+                                                                .map((memberId) => selectedGroupRecord.members.find((member) => member.id === memberId))
+                                                                .filter(Boolean)
+                                                                .map((person) => ({
+                                                                    name: person.name,
+                                                                    amount:
+                                                                        [expense.paidByMemberId, ...participantIds].length
+                                                                            ? Number(expense.amount) / [expense.paidByMemberId, ...participantIds].length
+                                                                            : 0,
+                                                                }))
 
                                                         return (
                                                             <div key={expense.id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -1021,7 +1232,10 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                                             {payer?.name || 'Unknown'} paid ${expense.amount}
                                                                         </div>
                                                                         <div className="mt-1 text-xs text-slate-400">
-                                                                            Split between {participants.map((person) => person.name).join(', ') || 'No one'}
+                                                                            {isCustomSplit ? 'Custom split' : 'Equal split'} between {[expense.paidByMemberId, ...participantIds]
+                                                                                .map((memberId) => selectedGroupRecord.members.find((member) => member.id === memberId)?.name)
+                                                                                .filter(Boolean)
+                                                                                .join(', ') || 'No one'}
                                                                         </div>
                                                                     </div>
 
@@ -1042,6 +1256,20 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                                         </button>
                                                                     </div>
                                                                 </div>
+
+                                                                {splitItems.length ? (
+                                                                    <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-slate-300">
+                                                                        <div className="mb-2 font-semibold text-white">Share breakdown</div>
+                                                                        <div className="space-y-1">
+                                                                            {splitItems.map((item, index) => (
+                                                                                <div key={`${item.name}-${index}`} className="flex items-center justify-between gap-3">
+                                                                                    <span>{item.name}</span>
+                                                                                    <span>${Number(item.amount || 0).toFixed(2)}</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                ) : null}
                                                             </div>
                                                         )
                                                     })}
@@ -1186,7 +1414,26 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                 </div>
 
                                                 <div>
-                                                    <div className="text-xs text-slate-400">Who owes a share?</div>
+                                                    <label className="text-xs text-slate-400" htmlFor="expense-split-method">
+                                                        Split method
+                                                    </label>
+                                                    <select
+                                                        id="expense-split-method"
+                                                        className="auth-input mt-2"
+                                                        onChange={handleExpenseSplitMethodChange}
+                                                        value={expenseForm.splitMethod}
+                                                    >
+                                                        <option value="equal">Equal split</option>
+                                                        <option value="custom">Custom split</option>
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <div className="text-xs text-slate-400">
+                                                        {expenseForm.splitMethod === 'equal'
+                                                            ? 'Who owes a share?'
+                                                            : 'Specify who owes how much'}
+                                                    </div>
                                                     <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                                                         {selectedGroupRecord.members
                                                             .filter((member) => member.id !== expenseForm.paidByMemberId)
@@ -1209,6 +1456,52 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                             })}
                                                     </div>
                                                 </div>
+
+                                                {expenseForm.splitMethod === 'custom' ? (
+                                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                        <div className="mb-3 text-sm font-semibold text-white">Custom split amounts</div>
+                                                        <div className="grid gap-3 md:grid-cols-2">
+                                                            {selectedGroupRecord.members
+                                                                .filter((member) => member.id !== expenseForm.paidByMemberId)
+                                                                .map((member) => (
+                                                                    <div key={member.id}>
+                                                                        <label className="text-xs text-slate-400" htmlFor={`share-${member.id}`}>
+                                                                            {member.name}
+                                                                        </label>
+                                                                        <input
+                                                                            id={`share-${member.id}`}
+                                                                            className="auth-input mt-2"
+                                                                            min="0"
+                                                                            step="0.01"
+                                                                            type="number"
+                                                                            value={expenseForm.shareAmounts?.[member.id] || ''}
+                                                                            onChange={(event) => handleShareAmountChange(member.id, event.target.value)}
+                                                                            placeholder="0.00"
+                                                                        />
+                                                                    </div>
+                                                                ))}
+                                                        </div>
+
+                                                        {expenseSplitSummary ? (
+                                                            <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-200">
+                                                                <div className="flex items-center justify-between gap-3">
+                                                                    <span className="font-semibold text-white">Split total</span>
+                                                                    <span className={Math.abs(expenseSplitSummary.total - Number(expenseForm.amount || 0)) <= 0.01 ? 'text-emerald-300' : 'text-rose-300'}>
+                                                                        ${expenseSplitSummary.total.toFixed(2)} / ${Number(expenseForm.amount || 0).toFixed(2)}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="mt-3 space-y-1 text-xs text-slate-400">
+                                                                    {expenseSplitSummary.items.map((item) => (
+                                                                        <div key={item.memberId} className="flex items-center justify-between gap-3">
+                                                                            <span>{item.name}</span>
+                                                                            <span>${Number(item.amount || 0).toFixed(2)}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
+                                                ) : null}
 
                                                 <button className="btn-primary" type="submit">
                                                     {expenseForm.editExpenseId ? 'Save expense' : 'Add expense'}
