@@ -1,4 +1,5 @@
 import FeatureCard from '../components/FeatureCard'
+import DotField from '../components/DotField'
 
 const features = [
     {
@@ -10,25 +11,33 @@ const features = [
         description: 'Move from landing to login or sign up in a single tap.',
     },
     {
-        title: 'Ready to connect',
-        description: 'The current flows are set up and can be connected to backend APIs later.',
+        title: 'Transparent settlements',
+        description: 'See exactly who owes who with clear, easy-to-understand settlement breakdowns.',
     },
 ]
 
 function LandingPage({ onLogin, onSignup }) {
     return (
-        <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.14),_transparent_24%),linear-gradient(180deg,_#10172a,_#050816)] text-white">
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:56px_56px] opacity-25" />
+        <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.14),_transparent_24%),linear-gradient(180deg,_#10172a,_#050816)] text-white">
+            <div className="pointer-events-none absolute inset-0 z-0 opacity-80">
+                <DotField
+                    dotRadius={1.5}
+                    dotSpacing={14}
+                    bulgeStrength={67}
+                    glowRadius={160}
+                    sparkle={false}
+                    waveAmplitude={0}
+                    gradientFrom="rgba(245, 158, 11, 0.28)"
+                    gradientTo="rgba(56, 189, 248, 0.2)"
+                    glowColor="#120F17"
+                />
+            </div>
 
-            <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-5 sm:px-8 lg:px-12">
+            <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-5 sm:px-8 lg:px-12">
                 <header className="mb-8 flex items-center justify-between gap-4 rounded-full border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
-                    <div className="flex items-center gap-3 text-left">
-                        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-300 text-lg font-bold text-slate-950">
-                            O
-                        </span>
+                    <div className="flex items-center text-left">
                         <span>
-                            <span className="block text-sm text-slate-300">Simple split bills</span>
-                            <span className="block text-lg font-semibold text-white">OweBuddy</span>
+                            <span className="block text-2xl font-semibold tracking-tight text-white sm:text-3xl">OweBuddy</span>
                         </span>
                     </div>
 
@@ -45,10 +54,6 @@ function LandingPage({ onLogin, onSignup }) {
                 <section className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
                     <div className="space-y-8">
                         <div className="space-y-5">
-                            <span className="inline-flex w-fit items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-1 text-sm font-medium text-amber-100">
-                                Simple expense tracking for groups
-                            </span>
-
                             <div className="space-y-4">
                                 <h1 className="max-w-2xl text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl">
                                     Keep shared money tidy without the noise.

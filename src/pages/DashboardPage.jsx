@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import AddFriendForm from '../components/AddFriendForm'
 import Dock from '../components/Dock'
+import DotField from '../components/DotField'
 import FormField from '../components/FormField'
 import FriendsList from '../components/FriendsList'
 import StaggeredMenu from '../components/StaggeredMenu'
@@ -138,11 +139,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
     const [selectedFriendId, setSelectedFriendId] = useState('')
     const [selectedGroupId, setSelectedGroupId] = useState('')
     const [expenseForm, setExpenseForm] = useState(initialExpenseForm)
-    const [notice, setNotice] = useState(
-        hasFirebaseConfig
-            ? ''
-            : 'Firebase is not configured yet. Add the VITE_FIREBASE_* variables to connect the dashboard.',
-    )
 
     const currentUserMember = useMemo(
         () => ({ id: userId, name: userName, email: userEmail || '' }),
@@ -221,7 +217,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             },
             (error) => {
                 if (!isActive) return
-                setNotice(error.message)
                 setFriendsLoading(false)
             },
         )
@@ -235,7 +230,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             },
             (error) => {
                 if (!isActive) return
-                setNotice(error.message)
                 setGroupsLoading(false)
             },
         )
@@ -248,7 +242,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             },
             (error) => {
                 if (!isActive) return
-                setNotice(error.message)
             },
         )
 
@@ -298,27 +291,24 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                 note: addFriendForm.note,
             })
             setAddFriendForm(initialAddFriendForm)
-            setNotice('Friend request sent.')
+
         } catch (error) {
-            setNotice(error.message)
         }
     }
 
     const handleAcceptFriendRequest = async (requestId) => {
         try {
             await acceptFriendRequest(requestId, userId)
-            setNotice('Friend request accepted. You can now add this friend to groups.')
+
         } catch (error) {
-            setNotice(error.message)
         }
     }
 
     const handleDeclineFriendRequest = async (requestId) => {
         try {
             await declineFriendRequest(requestId, userId)
-            setNotice('Friend request declined.')
+
         } catch (error) {
-            setNotice(error.message)
         }
     }
 
@@ -349,7 +339,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
 
         const name = (createGroupForm?.name || '').trim()
         if (!name) {
-            setNotice('Please enter a group name.')
+
             return
         }
 
@@ -370,10 +360,9 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                 ownerEmail: userEmail,
             })
             setCreateGroupForm(initialCreateGroupForm)
-            setNotice('Group saved to Firebase.')
+
             setActiveTab('groups')
         } catch (error) {
-            setNotice(error.message)
         }
     }
 
@@ -410,23 +399,23 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
     const handleExpenseSubmit = async (event) => {
         event.preventDefault()
         if (!selectedGroupRecord) {
-            setNotice('Select a group before adding an expense.')
+
             return
         }
 
         const amount = Number(expenseForm.amount)
         if (!amount || amount <= 0) {
-            setNotice('Please enter a valid expense amount greater than 0.')
+
             return
         }
 
         if (!expenseForm.paidByMemberId) {
-            setNotice('Please choose who paid for this expense.')
+
             return
         }
 
         if (!expenseForm.owedByMemberIds.length) {
-            setNotice('Please choose at least one participant who owes part of the expense.')
+
             return
         }
 
@@ -445,15 +434,9 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
 
         try {
             await updateGroupExpenses(selectedGroupRecord.id, nextExpenses)
-            setNotice(
-                expenseForm.editExpenseId
-                    ? 'Expense updated and balances recalculated.'
-                    : 'Expense added and balances recalculated.',
-            )
             resetExpenseForm()
             setActiveTab('group-details')
         } catch (error) {
-            setNotice(error.message)
         }
     }
 
@@ -474,7 +457,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             editExpenseId: expense.id,
         })
 
-        setNotice('Editing expense. Save to recalculate balances.')
+
         setActiveTab('add-expense')
     }
 
@@ -490,9 +473,8 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                 resetExpenseForm()
             }
 
-            setNotice('Expense deleted and balances recalculated.')
+
         } catch (error) {
-            setNotice(error.message)
         }
     }
 
@@ -504,11 +486,9 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
 
         try {
             await deleteGroupRecord(selectedGroup.id)
-            setNotice('Group deleted from Firebase Firestore: groups.')
             setSelectedGroupId('')
             setActiveTab('groups')
         } catch (error) {
-            setNotice(error.message)
         }
     }
 
@@ -566,12 +546,26 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
 
     return (
         <main
-            className={`min-h-screen overflow-hidden transition-colors ${theme === 'dark'
+            className={`relative min-h-screen overflow-hidden transition-colors ${theme === 'dark'
                 ? 'bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.14),_transparent_24%),linear-gradient(180deg,_#10172a,_#050816)] text-white'
                 : 'bg-[linear-gradient(180deg,_#f8fafc,_#e2e8f0)] text-slate-900'
                 }`}
             data-theme={theme}
         >
+            <div className="pointer-events-none absolute inset-0 z-0 opacity-80">
+                <DotField
+                    dotRadius={1.5}
+                    dotSpacing={14}
+                    bulgeStrength={67}
+                    glowRadius={160}
+                    sparkle={false}
+                    waveAmplitude={0}
+                    gradientFrom={isDarkTheme ? 'rgba(245, 158, 11, 0.28)' : 'rgba(217, 119, 6, 0.12)'}
+                    gradientTo={isDarkTheme ? 'rgba(56, 189, 248, 0.2)' : 'rgba(14, 116, 144, 0.1)'}
+                    glowColor={isDarkTheme ? '#120F17' : '#cbd5e1'}
+                />
+            </div>
+
             <StaggeredMenu
                 position="right"
                 items={staggeredMenuItems}
@@ -586,7 +580,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                 isFixed={true}
             />
             <Dock items={dockItems} panelHeight={66} baseItemSize={48} magnification={76} distance={180} />
-            <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col px-5 pb-28 pt-5 sm:px-8 lg:px-12">
+            <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 pb-28 pt-5 sm:px-8 lg:px-12">
                 <div className="flex-1">
                     <section className="p-2 sm:p-4 lg:p-6">
                         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -603,11 +597,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                 ) : null}
                             </div>
 
-                            {notice ? (
-                                <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
-                                    {notice}
-                                </div>
-                            ) : null}
+
                         </div>
 
                         {activeTab === 'overview' && (
@@ -684,9 +674,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
 
                                             try {
                                                 await deleteFriendRecord(friendId)
-                                                setNotice('Friend connection removed.')
                                             } catch (error) {
-                                                setNotice(error.message)
                                             }
                                         }}
                                     />
@@ -1242,6 +1230,10 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                     <div className="flex flex-wrap items-center justify-between gap-4">
                                         <div>
                                             <h2 className="text-2xl font-semibold text-white">{userName}</h2>
+                                            <p className="mt-1 text-sm text-slate-300">{userEmail || 'No email available'}</p>
+                                            <p className="mt-1 text-sm text-slate-400">
+                                                {friendsLoading ? 'Loading friends...' : `${friends.length} friend${friends.length === 1 ? '' : 's'}`}
+                                            </p>
                                         </div>
 
                                         <button className="btn-primary" onClick={onLogout} type="button">
