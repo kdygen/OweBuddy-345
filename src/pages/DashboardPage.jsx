@@ -4,7 +4,6 @@ import Dock from '../components/Dock'
 import DotField from '../components/DotField'
 import FormField from '../components/FormField'
 import FriendsList from '../components/FriendsList'
-import StaggeredMenu from '../components/StaggeredMenu'
 import {
     acceptFriendRequest,
     declineFriendRequest,
@@ -175,6 +174,11 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
         )
     }, [groupsWithBalances, groupSearch])
 
+    const selectedFriend = useMemo(() => {
+        if (!selectedFriendId) return null
+        return friends.find((friend) => friend.id === selectedFriendId || friend.userId === selectedFriendId) || null
+    }, [friends, selectedFriendId])
+
     const expenseSplitSummary = useMemo(() => {
         if (!selectedGroupRecord) return null
 
@@ -326,7 +330,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
 
     useEffect(() => {
         if (!selectedFriendId) return
-        if (!friends.some((friend) => friend.id === selectedFriendId)) {
+        if (!friends.some((friend) => friend.id === selectedFriendId || friend.userId === selectedFriendId)) {
             setSelectedFriendId('')
         }
     }, [friends, selectedFriendId])
@@ -660,15 +664,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
     }, [theme])
 
     const isDarkTheme = theme === 'dark'
-    const shouldShowSubtitle = !['groups', 'overview', 'group-details', 'friends', 'add-friend', 'profile'].includes(activeTab)
-
-    const staggeredMenuItems = [
-        { label: 'Home', ariaLabel: 'Go to home', link: '#home', onClick: () => setActiveTab('overview') },
-        { label: 'Groups', ariaLabel: 'Go to groups', link: '#groups', onClick: () => setActiveTab('groups') },
-        { label: 'Friends', ariaLabel: 'Go to friends', link: '#friends', onClick: () => setActiveTab('friends') },
-        { label: 'Profile', ariaLabel: 'Go to profile', link: '#profile', onClick: () => setActiveTab('profile') },
-        { label: 'Logout', ariaLabel: 'Log out', link: '#logout', onClick: onLogout },
-    ]
+    const shouldShowSubtitle = !['groups', 'overview', 'group-details', 'friends', 'add-friend', 'friend-profile', 'profile'].includes(activeTab)
 
     const dockItems = [
         {
@@ -723,19 +719,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                 />
             </div>
 
-            <StaggeredMenu
-                position="right"
-                items={staggeredMenuItems}
-                socialItems={[]}
-                displaySocials={false}
-                displayItemNumbering={true}
-                menuButtonColor={isDarkTheme ? '#f8fafc' : '#0f172a'}
-                openMenuButtonColor="#ffffff"
-                changeMenuColorOnOpen={true}
-                colors={['#0f172a', '#1e293b', '#111827']}
-                accentColor="#f97316"
-                isFixed={true}
-            />
             <Dock items={dockItems} panelHeight={66} baseItemSize={48} magnification={76} distance={180} />
             <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 pb-28 pt-5 sm:px-8 lg:px-12">
                 <div className="flex-1">
@@ -828,7 +811,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                         friends={friends}
                                         isLoading={friendsLoading}
                                         onSelectFriend={(friend) => {
-                                            setSelectedFriendId(friend.id)
+                                            setSelectedFriendId(friend.userId || friend.id)
                                             setActiveTab('friend-profile')
                                         }}
                                         onDeleteFriend={async (friendId) => {
@@ -1251,36 +1234,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                     No expenses yet. Add one above to generate balances.
                                                 </div>
                                             )}
-                                        </div>
-
-                                        <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                                            <div className="mb-4 flex items-center justify-between">
-                                                <h3 className="text-lg font-semibold text-white">Members in this group</h3>
-                                                <span className="text-sm text-slate-400">{selectedGroup.membersCount} members</span>
-                                            </div>
-
-                                            <div className="grid gap-3 md:grid-cols-2">
-                                                {selectedGroup.people.map((person) => (
-                                                    <div key={person.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                                        <div className="grid grid-cols-2 gap-3 text-xs text-slate-400">
-                                                            <div>
-                                                                <div>Name</div>
-                                                                <div className="mt-1 text-sm font-semibold text-white">{person.name}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div>Balance</div>
-                                                                <div className="mt-1 text-sm font-semibold text-emerald-400">
-                                                                    {person.net > 0
-                                                                        ? `Gets $${Math.abs(person.net).toFixed(2)}`
-                                                                        : person.net < 0
-                                                                            ? `Owes $${Math.abs(person.net).toFixed(2)}`
-                                                                            : 'Settled'}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
                                         </div>
 
                                         <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
