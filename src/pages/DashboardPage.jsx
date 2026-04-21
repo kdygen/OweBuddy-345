@@ -169,7 +169,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
     const filteredGroups = useMemo(() => {
         const searchLower = groupSearch.toLowerCase().trim()
         if (!searchLower) return groupsWithBalances
-        return groupsWithBalances.filter(g => 
+        return groupsWithBalances.filter(g =>
             g.name.toLowerCase().includes(searchLower) ||
             g.description?.toLowerCase().includes(searchLower)
         )
