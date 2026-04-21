@@ -737,13 +737,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                 )}
                             </div>
 
-                            {notice && (
-                                <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
-                                    {notice}
-                                </div>
-                            )}
-
-
                         </div>
 
                         {activeTab === 'overview' && (
@@ -1159,25 +1152,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                             )
                                                             .filter(Boolean)
                                                         const isCustomSplit = expense.splitMethod === 'custom'
-                                                        const splitItems = isCustomSplit
-                                                            ? expense.shares
-                                                                .map((share) => {
-                                                                    const member = selectedGroupRecord.members.find((item) => item.id === share.memberId)
-                                                                    return {
-                                                                        name: member?.name || 'Unknown',
-                                                                        amount: Number(share.amount || 0),
-                                                                    }
-                                                                })
-                                                            : [expense.paidByMemberId, ...participantIds]
-                                                                .map((memberId) => selectedGroupRecord.members.find((member) => member.id === memberId))
-                                                                .filter(Boolean)
-                                                                .map((person) => ({
-                                                                    name: person.name,
-                                                                    amount:
-                                                                        [expense.paidByMemberId, ...participantIds].length
-                                                                            ? Number(expense.amount) / [expense.paidByMemberId, ...participantIds].length
-                                                                            : 0,
-                                                                }))
 
                                                         return (
                                                             <div key={expense.id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -1212,19 +1186,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                                     </div>
                                                                 </div>
 
-                                                                {splitItems.length ? (
-                                                                    <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-xs text-slate-300">
-                                                                        <div className="mb-2 font-semibold text-white">Share breakdown</div>
-                                                                        <div className="space-y-1">
-                                                                            {splitItems.map((item, index) => (
-                                                                                <div key={`${item.name}-${index}`} className="flex items-center justify-between gap-3">
-                                                                                    <span>{item.name}</span>
-                                                                                    <span>${Number(item.amount || 0).toFixed(2)}</span>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                ) : null}
                                                             </div>
                                                         )
                                                     })}
