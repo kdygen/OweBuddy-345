@@ -5,7 +5,6 @@ import DotField from '../components/DotField'
 import FormField from '../components/FormField'
 import FriendsList from '../components/FriendsList'
 import StaggeredMenu from '../components/StaggeredMenu'
-import { hasFirebaseConfig } from '../lib/firebase'
 import {
     acceptFriendRequest,
     declineFriendRequest,
@@ -53,36 +52,10 @@ const initialExpenseForm = {
     editExpenseId: null,
 }
 
-const buildShareAmountState = (group, values = {}) => {
-    const members = Array.isArray(group?.members) ? group.members : []
+const buildShareAmountState = (group, values = {}) =>
+    Object.fromEntries((group?.members || []).map(m => [m.id, values[m.id] ?? '']))
 
-    return members.reduce((accumulator, member) => {
-        accumulator[member.id] = values[member.id] ?? ''
-        return accumulator
-    }, {})
-}
 
-const sortByName = (items) => [...items].sort((left, right) => left.name.localeCompare(right.name))
-
-const buildDefaultExpenseForm = (group) => {
-    if (!group) {
-        return initialExpenseForm
-    }
-
-    const defaultPayerId = group.members[0]?.id || ''
-    const defaultOwedByIds = group.members
-        .filter((member) => member.id !== defaultPayerId)
-        .map((member) => member.id)
-
-    return {
-        amount: '',
-        paidByMemberId: defaultPayerId,
-        owedByMemberIds: defaultOwedByIds,
-        splitMethod: 'equal',
-        shareAmounts: buildShareAmountState(group),
-        editExpenseId: null,
-    }
-}
 
 const buildEqualSplitShares = (amount, memberIds) => {
     const totalCents = Math.round(Number(amount || 0) * 100)
@@ -104,27 +77,7 @@ const buildEqualSplitShares = (amount, memberIds) => {
     })
 }
 
-const normalizeFriendRecord = (friend) => ({
-    id: friend.id,
-    userId: friend.userId,
-    name: friend.name?.trim() || friend.email?.trim() || 'Unnamed friend',
-    email: friend.email?.trim() || '',
-    note: friend.note?.trim() || '',
-    status: friend.status || 'Active',
-})
 
-const normalizeGroupRecord = (group) => ({
-    id: group.id,
-    createdBy: group.createdBy,
-    name: group.name?.trim() || 'Untitled group',
-    description: group.description?.trim() || '',
-    members: Array.isArray(group.members) ? group.members : [],
-    expenses: Array.isArray(group.expenses) ? group.expenses : [],
-})
-
-const DockGlyph = ({ children }) => (
-    <span className="flex h-5 w-5 items-center justify-center text-inherit">{children}</span>
-)
 
 const HomeIcon = () => (
     <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8" aria-hidden="true">
@@ -179,40 +132,48 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
         [userEmail, userId, userName],
     )
 
-    const selectedGroupRecord = useMemo(() => {
-        if (!groups.length) return null
-        return groups.find((group) => group.id === selectedGroupId) || groups[0]
-    }, [groups, selectedGroupId])
+    const selectedGroupRecord = useMemo(
+        () => groups.find(g => g.id === selectedGroupId) || groups[0] || null,
+        [groups, selectedGroupId]
+    )
 
     const groupsWithBalances = useMemo(() => {
-        return sortByName(groups.map((group) => calculateGroupBalances(group, userName, userId)))
+        return groups
+            .map(g => calculateGroupBalances(g, userName, userId))
+            .sort((a, b) => a.name.localeCompare(b.name))
     }, [groups, userName, userId])
 
-    const filteredGroups = useMemo(() => {
-        const value = groupSearch.trim().toLowerCase()
-        if (!value) return groupsWithBalances
-        return groupsWithBalances.filter((group) => group.name.toLowerCase().includes(value))
-    }, [groupSearch, groupsWithBalances])
+    const selectedGroup = useMemo(
+        () => groupsWithBalances.find(g => g.id === selectedGroupId) || groupsWithBalances[0] || null,
+        [groupsWithBalances, selectedGroupId]
+    )
+
+    const recentActivityGroups = useMemo(
+        () => groupsWithBalances.slice(0, 3).map(g => ({
+            ...g,
+            membersCount: g.membersCount || 0,
+        })),
+        [groupsWithBalances]
+    )
 
     const groupStats = useMemo(() => {
-        const totalGroups = groupsWithBalances.length
-        const totalYouOwe = groupsWithBalances.reduce((sum, group) => sum + group.youOwe, 0)
-        const totalYouAreOwed = groupsWithBalances.reduce((sum, group) => sum + group.youAreOwed, 0)
-
+        const totalYouOwe = groupsWithBalances.reduce((sum, g) => sum + (g.youOwe || 0), 0)
+        const totalYouAreOwed = groupsWithBalances.reduce((sum, g) => sum + (g.youAreOwed || 0), 0)
         return {
-            totalGroups,
-            totalYouOwe,
-            totalYouAreOwed,
+            totalGroups: groupsWithBalances.length,
+            totalYouOwe: totalYouOwe.toFixed(2),
+            totalYouAreOwed: totalYouAreOwed.toFixed(2),
         }
     }, [groupsWithBalances])
 
-    const selectedGroup = useMemo(() => {
-        if (!groupsWithBalances.length) return null
-        return (
-            groupsWithBalances.find((group) => group.id === selectedGroupId) ||
-            groupsWithBalances[0]
+    const filteredGroups = useMemo(() => {
+        const searchLower = groupSearch.toLowerCase().trim()
+        if (!searchLower) return groupsWithBalances
+        return groupsWithBalances.filter(g => 
+            g.name.toLowerCase().includes(searchLower) ||
+            g.description?.toLowerCase().includes(searchLower)
         )
-    }, [groupsWithBalances, selectedGroupId])
+    }, [groupsWithBalances, groupSearch])
 
     const expenseSplitSummary = useMemo(() => {
         if (!selectedGroupRecord) return null
@@ -268,27 +229,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
         }
     }, [expenseForm.amount, expenseForm.owedByMemberIds, expenseForm.shareAmounts, expenseForm.splitMethod, selectedGroupRecord])
 
-    const recentActivityGroups = useMemo(() => {
-        if (!groupsWithBalances.length) return []
 
-        const byExpenseCount = [...groupsWithBalances].sort(
-            (left, right) => (right.expenses?.length || 0) - (left.expenses?.length || 0),
-        )
-
-        if (!selectedGroupId) {
-            return byExpenseCount.slice(0, 3)
-        }
-
-        const selected = groupsWithBalances.find((group) => group.id === selectedGroupId)
-        const remaining = byExpenseCount.filter((group) => group.id !== selectedGroupId)
-
-        return [selected, ...remaining].filter(Boolean).slice(0, 3)
-    }, [groupsWithBalances, selectedGroupId])
-
-    const selectedFriend = useMemo(() => {
-        if (!friends.length || !selectedFriendId) return null
-        return friends.find((friend) => friend.id === selectedFriendId) || null
-    }, [friends, selectedFriendId])
 
     useEffect(() => {
         let isActive = true
@@ -300,37 +241,48 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             userId,
             (nextFriends) => {
                 if (!isActive) return
-                setFriends(sortByName(nextFriends.map(normalizeFriendRecord)))
+                setFriends(
+                    nextFriends
+                        .map(f => ({
+                            id: f.id,
+                            userId: f.userId,
+                            name: f.name?.trim() || f.email?.trim() || 'Unnamed friend',
+                            email: f.email?.trim() || '',
+                            note: f.note?.trim() || '',
+                            status: f.status || 'Active',
+                        }))
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                )
                 setFriendsLoading(false)
             },
-            (error) => {
-                if (!isActive) return
-                setFriendsLoading(false)
-            },
+            () => isActive && setFriendsLoading(false),
         )
 
         const unsubscribeGroups = watchUserGroups(
             userId,
             (nextGroups) => {
                 if (!isActive) return
-                setGroups(sortByName(nextGroups.map(normalizeGroupRecord)))
+                setGroups(
+                    nextGroups
+                        .map(g => ({
+                            id: g.id,
+                            createdBy: g.createdBy,
+                            name: g.name?.trim() || 'Untitled group',
+                            description: g.description?.trim() || '',
+                            members: g.members || [],
+                            expenses: g.expenses || [],
+                        }))
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                )
                 setGroupsLoading(false)
             },
-            (error) => {
-                if (!isActive) return
-                setGroupsLoading(false)
-            },
+            () => isActive && setGroupsLoading(false),
         )
 
         const unsubscribeFriendRequests = watchUserFriendRequests(
             userId,
-            (nextFriendRequests) => {
-                if (!isActive) return
-                setFriendRequests(nextFriendRequests)
-            },
-            (error) => {
-                if (!isActive) return
-            },
+            (nextFriendRequests) => isActive && setFriendRequests(nextFriendRequests),
+            () => { },
         )
 
         return () => {
@@ -353,7 +305,23 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
     }, [groups, selectedGroupId])
 
     useEffect(() => {
-        setExpenseForm(buildDefaultExpenseForm(selectedGroupRecord))
+        if (!selectedGroupRecord) {
+            setExpenseForm(initialExpenseForm)
+        } else {
+            const defaultPayerId = selectedGroupRecord.members[0]?.id || ''
+            const defaultOwedByIds = selectedGroupRecord.members
+                .filter(m => m.id !== defaultPayerId)
+                .map(m => m.id)
+
+            setExpenseForm({
+                amount: '',
+                paidByMemberId: defaultPayerId,
+                owedByMemberIds: defaultOwedByIds,
+                splitMethod: 'equal',
+                shareAmounts: buildShareAmountState(selectedGroupRecord),
+                editExpenseId: null,
+            })
+        }
     }, [selectedGroupRecord])
 
     useEffect(() => {
@@ -429,25 +397,12 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
         })
     }
 
-    const handleExpenseSplitMethodChange = (event) => {
-        const splitMethod = event.target.value
-
-        setExpenseForm((current) => {
-            const base = current || initialExpenseForm
-            if (splitMethod === 'equal') {
-                return {
-                    ...base,
-                    splitMethod,
-                    shareAmounts: buildShareAmountState(selectedGroupRecord, base.shareAmounts),
-                }
-            }
-
-            return {
-                ...base,
-                splitMethod,
-                shareAmounts: buildShareAmountState(selectedGroupRecord, base.shareAmounts),
-            }
-        })
+    const handleExpenseSplitMethodChange = (e) => {
+        setExpenseForm(f => ({
+            ...f,
+            splitMethod: e.target.value,
+            shareAmounts: buildShareAmountState(selectedGroupRecord, f.shareAmounts),
+        }))
     }
 
     const handleShareAmountChange = (memberId, value) => {
@@ -529,6 +484,22 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                     },
             }
         })
+    }
+
+    const buildDefaultExpenseForm = (group) => {
+        if (!group) return initialExpenseForm
+        const defaultPayerId = group.members[0]?.id || ''
+        const defaultOwedByIds = group.members
+            .filter(m => m.id !== defaultPayerId)
+            .map(m => m.id)
+        return {
+            amount: '',
+            paidByMemberId: defaultPayerId,
+            owedByMemberIds: defaultOwedByIds,
+            splitMethod: 'equal',
+            shareAmounts: buildShareAmountState(group),
+            editExpenseId: null,
+        }
     }
 
     const resetExpenseForm = () => {
@@ -689,6 +660,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
     }, [theme])
 
     const isDarkTheme = theme === 'dark'
+    const shouldShowSubtitle = !['groups', 'overview', 'group-details', 'friends', 'add-friend', 'profile'].includes(activeTab)
 
     const staggeredMenuItems = [
         { label: 'Home', ariaLabel: 'Go to home', link: '#home', onClick: () => setActiveTab('overview') },
@@ -703,7 +675,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             label: 'Home',
             onClick: () => setActiveTab('overview'),
             className: activeTab === 'overview' ? 'dock-item-active' : '',
-            icon: <DockGlyph><HomeIcon /></DockGlyph>,
+            icon: <span className="flex h-5 w-5 items-center justify-center"><HomeIcon /></span>,
         },
         {
             label: 'Groups',
@@ -711,7 +683,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             className: ['groups', 'create-group', 'group-details', 'add-expense'].includes(activeTab)
                 ? 'dock-item-active'
                 : '',
-            icon: <DockGlyph><GroupIcon /></DockGlyph>,
+            icon: <span className="flex h-5 w-5 items-center justify-center"><GroupIcon /></span>,
         },
         {
             label: 'Friends',
@@ -719,13 +691,13 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             className: ['friends', 'add-friend', 'friend-profile'].includes(activeTab)
                 ? 'dock-item-active'
                 : '',
-            icon: <DockGlyph><FriendsIcon /></DockGlyph>,
+            icon: <span className="flex h-5 w-5 items-center justify-center"><FriendsIcon /></span>,
         },
         {
             label: 'Profile',
             onClick: () => setActiveTab('profile'),
             className: activeTab === 'profile' ? 'dock-item-active' : '',
-            icon: <DockGlyph><ProfileIcon /></DockGlyph>,
+            icon: <span className="flex h-5 w-5 items-center justify-center"><ProfileIcon /></span>,
         },
     ]
 
@@ -770,23 +742,23 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                     <section className="p-2 sm:p-4 lg:p-6">
                         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
                             <div>
-                                {activeTab !== 'groups' ? (
+                                {activeTab !== 'groups' && (
                                     <h1 className="text-3xl font-semibold text-white sm:text-4xl">
                                         {screenTitles[activeTab]}
                                     </h1>
-                                ) : null}
-                                {activeTab !== 'groups' && activeTab !== 'overview' && activeTab !== 'group-details' && activeTab !== 'friends' && activeTab !== 'add-friend' && activeTab !== 'profile' ? (
+                                )}
+                                {shouldShowSubtitle && (
                                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
                                         Manage your shared balances with a simple frontend dashboard.
                                     </p>
-                                ) : null}
+                                )}
                             </div>
 
-                            {notice ? (
+                            {notice && (
                                 <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
                                     {notice}
                                 </div>
-                            ) : null}
+                            )}
 
 
                         </div>
