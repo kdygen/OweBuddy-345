@@ -363,7 +363,41 @@ export const createGroupRecord = async (ownerId, group) => {
         members,
         memberIds,
         expenses: [],
+        payments: [],
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    })
+}
+
+export const updateGroupMembers = async (groupId, members) => {
+    ensureDb()
+
+    const dedupedMembers = (Array.isArray(members) ? members : []).reduce((accumulator, member) => {
+        if (!member?.id) return accumulator
+        if (accumulator.some((item) => item.id === member.id)) return accumulator
+
+        return [
+            ...accumulator,
+            {
+                id: member.id,
+                name: member.name?.trim() || member.email?.trim() || 'Unnamed member',
+                email: normalizeEmail(member.email),
+            },
+        ]
+    }, [])
+
+    return updateDoc(doc(db, 'groups', groupId), {
+        members: dedupedMembers,
+        memberIds: dedupedMembers.map((member) => member.id),
+        updatedAt: serverTimestamp(),
+    })
+}
+
+export const updateGroupPayments = async (groupId, payments) => {
+    ensureDb()
+
+    return updateDoc(doc(db, 'groups', groupId), {
+        payments: Array.isArray(payments) ? payments : [],
         updatedAt: serverTimestamp(),
     })
 }
