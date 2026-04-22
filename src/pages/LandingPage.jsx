@@ -1,4 +1,5 @@
 import DotField from '../components/DotField'
+import oweBuddyLogo from '../assets/owebuddy-logo.svg'
 
 function LandingPage({ onLogin, onSignup }) {
     return (
@@ -20,7 +21,11 @@ function LandingPage({ onLogin, onSignup }) {
             <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-5 sm:px-8 lg:px-12">
                 <header className="mb-8 flex items-center justify-between gap-4 rounded-full border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
                     <div className="flex items-center text-left">
-                        <span className="block text-2xl font-semibold tracking-tight text-white sm:text-3xl">OweBuddy</span>
+                        <img
+                            src={oweBuddyLogo}
+                            alt="OweBuddy"
+                            className="h-10 w-auto sm:h-12"
+                        />
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -34,7 +39,7 @@ function LandingPage({ onLogin, onSignup }) {
                 </header>
 
                 <section className="flex flex-1 items-center justify-center text-center">
-                    <div className="space-y-5">
+                    <div className="-mt-6 space-y-5 sm:-mt-8">
                         <h1 className="mx-auto max-w-3xl text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl">
                             Keep shared money tidy without the noise.
                         </h1>

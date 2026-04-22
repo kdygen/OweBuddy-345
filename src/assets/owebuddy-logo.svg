@@ -1,0 +1,13 @@
+<svg width="420" height="120" viewBox="0 0 420 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g fill="#FFFFFF">
+    <circle cx="34" cy="24" r="16" />
+    <circle cx="84" cy="24" r="16" />
+    <path d="M4 76C4 58.33 18.33 44 36 44C53.67 44 68 58.33 68 76V96H20C11.16 96 4 88.84 4 80V76Z" />
+    <path d="M55 96C55 67.83 77.83 45 106 45C121.46 45 134 57.54 134 73V80C134 88.84 126.84 96 118 96H55Z" />
+    <path d="M13 56L50 50L42 64L63 74L57 85L36 74L30 88L13 56Z" />
+    <path d="M78 56L116 62L101 75L109 88L96 91L89 77L75 83L78 56Z" />
+  </g>
+  <text x="145" y="78" fill="#FFFFFF" font-family="Segoe UI, Arial, sans-serif" font-size="52" letter-spacing="-0.5">
+    Owe<tspan font-weight="700">Buddy</tspan>
+  </text>
+</svg>
