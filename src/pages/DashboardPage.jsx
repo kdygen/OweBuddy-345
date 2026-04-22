@@ -96,12 +96,12 @@ const computeExpensePaymentState = (expenses, payments) => {
 
     expenseList.forEach((expense) => {
         const shareMap = {}
-        ;(Array.isArray(expense.shares) ? expense.shares : []).forEach((share) => {
-            if (!share?.memberId || share.memberId === expense.paidByMemberId) return
-            const amountCents = toCents(share.amount)
-            if (amountCents <= 0) return
-            shareMap[share.memberId] = (shareMap[share.memberId] || 0) + amountCents
-        })
+            ; (Array.isArray(expense.shares) ? expense.shares : []).forEach((share) => {
+                if (!share?.memberId || share.memberId === expense.paidByMemberId) return
+                const amountCents = toCents(share.amount)
+                if (amountCents <= 0) return
+                shareMap[share.memberId] = (shareMap[share.memberId] || 0) + amountCents
+            })
         outstandingByExpenseId[expense.id] = shareMap
     })
 
