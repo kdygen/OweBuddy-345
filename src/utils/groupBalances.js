@@ -4,6 +4,7 @@ const fromCents = (value) => Number((value / 100).toFixed(2))
 export function calculateGroupBalances(group, currentUser = 'You', currentUserId = '') {
     const members = Array.isArray(group.members) ? group.members : []
     const expenses = Array.isArray(group.expenses) ? group.expenses : []
+    const payments = Array.isArray(group.payments) ? group.payments : []
     const memberNameById = new Map(members.map((member) => [member.id, member.name]))
     const balanceByMemberId = new Map(members.map((member) => [member.id, 0]))
     const currentUserMember =
@@ -54,6 +55,26 @@ export function calculateGroupBalances(group, currentUser = 'You', currentUserId
         })
     })
 
+    payments
+        .filter((payment) => payment?.status === 'confirmed')
+        .forEach((payment) => {
+            const amountCents = toCents(payment.amount)
+            if (!amountCents) return
+
+            if (!balanceByMemberId.has(payment.fromMemberId) || !balanceByMemberId.has(payment.toMemberId)) {
+                return
+            }
+
+            balanceByMemberId.set(
+                payment.fromMemberId,
+                balanceByMemberId.get(payment.fromMemberId) + amountCents,
+            )
+            balanceByMemberId.set(
+                payment.toMemberId,
+                balanceByMemberId.get(payment.toMemberId) - amountCents,
+            )
+        })
+
     const people = members.map((member) => ({
         id: member.id,
         name: member.name,
@@ -101,6 +122,7 @@ export function calculateGroupBalances(group, currentUser = 'You', currentUserId
         people,
         settlements,
         expenses,
+        payments,
         youOwe: currentUserNetCents < 0 ? fromCents(Math.abs(currentUserNetCents)) : 0,
         youAreOwed: currentUserNetCents > 0 ? fromCents(currentUserNetCents) : 0,
     }

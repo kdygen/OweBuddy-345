@@ -12,6 +12,8 @@ import {
     createFriendRecord,
     createGroupRecord,
     updateGroupExpenses,
+    updateGroupMembers,
+    updateGroupPayments,
     watchUserFriends,
     watchUserFriendRequests,
     watchUserGroups,
@@ -43,6 +45,7 @@ const initialCreateGroupForm = {
 }
 
 const initialExpenseForm = {
+    title: '',
     amount: '',
     paidByMemberId: '',
     owedByMemberIds: [],
@@ -53,6 +56,85 @@ const initialExpenseForm = {
 
 const buildShareAmountState = (group, values = {}) =>
     Object.fromEntries((group?.members || []).map(m => [m.id, values[m.id] ?? '']))
+
+const toCents = (value) => Math.round(Number(value || 0) * 100)
+
+const createPaymentRequestId = () => `pay-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+const buildSettlementKey = (fromMemberId, toMemberId, amount) => {
+    return `${fromMemberId}__${toMemberId}__${toCents(amount)}`
+}
+
+const isMemberReferencedInExpenses = (expenses, memberId) => {
+    return (Array.isArray(expenses) ? expenses : []).some((expense) => {
+        if (!expense) return false
+        if (expense.paidByMemberId === memberId) return true
+
+        if (Array.isArray(expense.owedByMemberIds) && expense.owedByMemberIds.includes(memberId)) {
+            return true
+        }
+
+        if (Array.isArray(expense.shares) && expense.shares.some((share) => share.memberId === memberId)) {
+            return true
+        }
+
+        return false
+    })
+}
+
+const computeExpensePaymentState = (expenses, payments) => {
+    const expenseList = Array.isArray(expenses) ? expenses : []
+    const confirmedPayments = (Array.isArray(payments) ? payments : [])
+        .filter((payment) => payment?.status === 'confirmed')
+        .sort((left, right) => {
+            const leftTime = new Date(left.confirmedAt || left.updatedAt || left.createdAt || 0).getTime()
+            const rightTime = new Date(right.confirmedAt || right.updatedAt || right.createdAt || 0).getTime()
+            return leftTime - rightTime
+        })
+
+    const outstandingByExpenseId = {}
+
+    expenseList.forEach((expense) => {
+        const shareMap = {}
+            ; (Array.isArray(expense.shares) ? expense.shares : []).forEach((share) => {
+                if (!share?.memberId || share.memberId === expense.paidByMemberId) return
+                const amountCents = toCents(share.amount)
+                if (amountCents <= 0) return
+                shareMap[share.memberId] = (shareMap[share.memberId] || 0) + amountCents
+            })
+        outstandingByExpenseId[expense.id] = shareMap
+    })
+
+    confirmedPayments.forEach((payment) => {
+        let remaining = toCents(payment.amount)
+        if (remaining <= 0) return
+
+        for (const expense of expenseList) {
+            if (remaining <= 0) break
+            if (expense.paidByMemberId !== payment.toMemberId) continue
+
+            const shareMap = outstandingByExpenseId[expense.id]
+            const fromOutstanding = shareMap?.[payment.fromMemberId] || 0
+            if (!fromOutstanding) continue
+
+            const applied = Math.min(remaining, fromOutstanding)
+            shareMap[payment.fromMemberId] = fromOutstanding - applied
+            remaining -= applied
+        }
+    })
+
+    const stateByExpenseId = {}
+    expenseList.forEach((expense) => {
+        const shareMap = outstandingByExpenseId[expense.id] || {}
+        const remainingCents = Object.values(shareMap).reduce((sum, value) => sum + value, 0)
+        stateByExpenseId[expense.id] = {
+            isPaid: remainingCents === 0,
+            remainingCents,
+        }
+    })
+
+    return stateByExpenseId
+}
 
 
 
@@ -123,6 +205,8 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
     const [groupSearch, setGroupSearch] = useState('')
     const [selectedFriendId, setSelectedFriendId] = useState('')
     const [selectedGroupId, setSelectedGroupId] = useState('')
+    const [memberToAddId, setMemberToAddId] = useState('')
+    const [showGroupMembersPanel, setShowGroupMembersPanel] = useState(false)
     const [expenseForm, setExpenseForm] = useState(initialExpenseForm)
     const [notice, setNotice] = useState('')
 
@@ -178,6 +262,58 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
         if (!selectedFriendId) return null
         return friends.find((friend) => friend.id === selectedFriendId || friend.userId === selectedFriendId) || null
     }, [friends, selectedFriendId])
+
+    const addableFriends = useMemo(() => {
+        if (!selectedGroupRecord) return []
+
+        const currentMemberIds = new Set((selectedGroupRecord.members || []).map((member) => member.id))
+        return friends
+            .filter((friend) => friend.userId && !currentMemberIds.has(friend.userId))
+            .map((friend) => ({
+                id: friend.userId,
+                name: friend.name,
+                email: friend.email,
+            }))
+            .sort((left, right) => left.name.localeCompare(right.name))
+    }, [friends, selectedGroupRecord])
+
+    const pendingPaymentsBySettlementKey = useMemo(() => {
+        const pendingPayments = (selectedGroupRecord?.payments || []).filter((payment) => payment.status === 'pending')
+        return pendingPayments.reduce((accumulator, payment) => {
+            const key = buildSettlementKey(payment.fromMemberId, payment.toMemberId, payment.amount)
+            accumulator[key] = payment
+            return accumulator
+        }, {})
+    }, [selectedGroupRecord])
+
+    const expensePaymentStateById = useMemo(() => {
+        if (!selectedGroupRecord) return {}
+        return computeExpensePaymentState(selectedGroupRecord.expenses, selectedGroupRecord.payments)
+    }, [selectedGroupRecord])
+
+    const groupedExpenses = useMemo(() => {
+        if (!selectedGroupRecord) {
+            return { openExpenses: [], paidExpenses: [] }
+        }
+
+        const openExpenses = []
+        const paidExpenses = []
+
+        selectedGroupRecord.expenses.forEach((expense) => {
+            const paymentState = expensePaymentStateById[expense.id]
+            if (paymentState?.isPaid) {
+                paidExpenses.push(expense)
+                return
+            }
+
+            openExpenses.push(expense)
+        })
+
+        return {
+            openExpenses,
+            paidExpenses,
+        }
+    }, [expensePaymentStateById, selectedGroupRecord])
 
     const expenseSplitSummary = useMemo(() => {
         if (!selectedGroupRecord) return null
@@ -275,6 +411,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                             description: g.description?.trim() || '',
                             members: g.members || [],
                             expenses: g.expenses || [],
+                            payments: g.payments || [],
                         }))
                         .sort((a, b) => a.name.localeCompare(b.name))
                 )
@@ -309,6 +446,10 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
     }, [groups, selectedGroupId])
 
     useEffect(() => {
+        setShowGroupMembersPanel(false)
+    }, [selectedGroupId])
+
+    useEffect(() => {
         if (!selectedGroupRecord) {
             setExpenseForm(initialExpenseForm)
         } else {
@@ -334,6 +475,17 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             setSelectedFriendId('')
         }
     }, [friends, selectedFriendId])
+
+    useEffect(() => {
+        if (!addableFriends.length) {
+            setMemberToAddId('')
+            return
+        }
+
+        if (!memberToAddId || !addableFriends.some((friend) => friend.id === memberToAddId)) {
+            setMemberToAddId(addableFriends[0].id)
+        }
+    }, [addableFriends, memberToAddId])
 
     const handleAddFriendChange = (event) => {
         const { name, value } = event.target
@@ -497,6 +649,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             .filter(m => m.id !== defaultPayerId)
             .map(m => m.id)
         return {
+            title: '',
             amount: '',
             paidByMemberId: defaultPayerId,
             owedByMemberIds: defaultOwedByIds,
@@ -518,6 +671,13 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
         }
 
         const amount = Number(expenseForm.amount)
+        const title = (expenseForm.title || '').trim()
+
+        if (!title) {
+            setNotice('Add a name for what this expense was for.')
+            return
+        }
+
         if (!amount || amount <= 0) {
 
             return
@@ -571,11 +731,20 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
 
         const nextExpense = {
             id: expenseForm.editExpenseId || `exp-${Date.now()}`,
+            title,
             amount,
             paidByMemberId: expenseForm.paidByMemberId,
             owedByMemberIds: expenseForm.owedByMemberIds,
             splitMethod: expenseForm.splitMethod,
             shares,
+            createdByMemberId:
+                expenseForm.editExpenseId
+                    ? (selectedGroupRecord.expenses.find((expense) => expense.id === expenseForm.editExpenseId)?.createdByMemberId || userId)
+                    : userId,
+            createdAt:
+                expenseForm.editExpenseId
+                    ? (selectedGroupRecord.expenses.find((expense) => expense.id === expenseForm.editExpenseId)?.createdAt || new Date().toISOString())
+                    : new Date().toISOString(),
         }
 
         const nextExpenses = expenseForm.editExpenseId
@@ -602,6 +771,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             .map((member) => member.id)
 
         setExpenseForm({
+            title: expense.title || '',
             amount: String(expense.amount),
             paidByMemberId: expense.paidByMemberId,
             owedByMemberIds:
@@ -649,6 +819,138 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
             setSelectedGroupId('')
             setActiveTab('groups')
         } catch (error) {
+        }
+    }
+
+    const handleAddGroupMember = async () => {
+        if (!selectedGroupRecord || !memberToAddId) return
+
+        const friendToAdd = addableFriends.find((friend) => friend.id === memberToAddId)
+        if (!friendToAdd) return
+
+        const nextMembers = [
+            ...(selectedGroupRecord.members || []),
+            {
+                id: friendToAdd.id,
+                name: friendToAdd.name,
+                email: friendToAdd.email,
+            },
+        ]
+
+        try {
+            await updateGroupMembers(selectedGroupRecord.id, nextMembers)
+            setNotice(`${friendToAdd.name} was added to the group.`)
+        } catch (error) {
+            setNotice(error.message)
+        }
+    }
+
+    const handleRemoveGroupMember = async (memberId) => {
+        if (!selectedGroupRecord) return
+
+        if (memberId === userId) {
+            setNotice('You cannot remove yourself from this group.')
+            return
+        }
+
+        if (isMemberReferencedInExpenses(selectedGroupRecord.expenses, memberId)) {
+            setNotice('This member is used in expense history. Remove related expenses first.')
+            return
+        }
+
+        const hasPaymentHistory = (selectedGroupRecord.payments || []).some(
+            (payment) => payment.fromMemberId === memberId || payment.toMemberId === memberId,
+        )
+        if (hasPaymentHistory) {
+            setNotice('This member has payment history. Clear payment records first.')
+            return
+        }
+
+        const member = selectedGroupRecord.members.find((item) => item.id === memberId)
+        const confirmed = window.confirm(`Remove ${member?.name || 'this member'} from the group?`)
+        if (!confirmed) return
+
+        const nextMembers = (selectedGroupRecord.members || []).filter((item) => item.id !== memberId)
+
+        try {
+            await updateGroupMembers(selectedGroupRecord.id, nextMembers)
+            setNotice('Member removed from group.')
+        } catch (error) {
+            setNotice(error.message)
+        }
+    }
+
+    const handleRequestSettlementPayment = async (settlement) => {
+        if (!selectedGroupRecord || !settlement) return
+
+        if (settlement.fromMemberId !== userId) {
+            setNotice('Only the person who owes can mark this as paid.')
+            return
+        }
+
+        const settlementAmountCents = toCents(settlement.amount)
+        const hasPendingRequest = (selectedGroupRecord.payments || []).some((payment) => {
+            if (payment.status !== 'pending') return false
+            if (payment.fromMemberId !== settlement.fromMemberId || payment.toMemberId !== settlement.toMemberId) {
+                return false
+            }
+            return toCents(payment.amount) === settlementAmountCents
+        })
+
+        if (hasPendingRequest) {
+            setNotice('A payment confirmation request is already pending for this owe.')
+            return
+        }
+
+        const paymentRequest = {
+            id: createPaymentRequestId(),
+            fromMemberId: settlement.fromMemberId,
+            toMemberId: settlement.toMemberId,
+            amount: Number(settlement.amount.toFixed(2)),
+            status: 'pending',
+            requestedBy: userId,
+            requestedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        }
+
+        try {
+            await updateGroupPayments(selectedGroupRecord.id, [...(selectedGroupRecord.payments || []), paymentRequest])
+            setNotice('Payment marked as paid. Waiting for confirmation from the person who paid the expense.')
+        } catch (error) {
+            setNotice(error.message)
+        }
+    }
+
+    const handleReviewPaymentRequest = async (paymentId, approved) => {
+        if (!selectedGroupRecord || !paymentId) return
+
+        const existingPayments = selectedGroupRecord.payments || []
+        const targetPayment = existingPayments.find((payment) => payment.id === paymentId)
+
+        if (!targetPayment || targetPayment.status !== 'pending') return
+        if (targetPayment.toMemberId !== userId) {
+            setNotice('Only the original payer can confirm this payment.')
+            return
+        }
+
+        const nextPayments = existingPayments.map((payment) => {
+            if (payment.id !== paymentId) return payment
+
+            return {
+                ...payment,
+                status: approved ? 'confirmed' : 'declined',
+                confirmedBy: userId,
+                confirmedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            }
+        })
+
+        try {
+            await updateGroupPayments(selectedGroupRecord.id, nextPayments)
+            setNotice(approved ? 'Payment confirmed. The owe is now settled.' : 'Payment request declined.')
+        } catch (error) {
+            setNotice(error.message)
         }
     }
 
@@ -754,7 +1056,8 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                     {recentActivityGroups.length ? (
                                         <div className="mt-4 space-y-3">
                                             {recentActivityGroups.map((group) => {
-                                                const expenseCount = group.expenses?.length || 0
+                                                const hasOpenBalances = (group.settlements?.length || 0) > 0
+                                                const expenseCount = hasOpenBalances ? (group.expenses?.length || 0) : 0
 
                                                 return (
                                                     <button
@@ -1122,11 +1425,79 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                 <button className="btn-primary" onClick={() => setActiveTab('add-expense')} type="button">
                                                     Add expense
                                                 </button>
+                                                <button
+                                                    className="btn-secondary"
+                                                    onClick={() => setShowGroupMembersPanel((current) => !current)}
+                                                    type="button"
+                                                >
+                                                    {showGroupMembersPanel ? 'Hide members' : 'Manage members'}
+                                                </button>
                                                 <button className="btn-secondary" onClick={handleGroupDelete} type="button">
                                                     Delete group
                                                 </button>
                                             </div>
                                         </div>
+
+                                        {showGroupMembersPanel ? (
+                                            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                                                <div className="mb-4 flex items-center justify-between">
+                                                    <h3 className="text-lg font-semibold text-white">Manage members</h3>
+                                                    <span className="text-sm text-slate-400">{selectedGroupRecord.members.length} members</span>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    {selectedGroupRecord.members.map((member) => {
+                                                        const canRemove = member.id !== userId
+                                                        return (
+                                                            <div
+                                                                key={member.id}
+                                                                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                                                            >
+                                                                <div>
+                                                                    <div className="text-sm font-semibold text-white">{member.name}</div>
+                                                                    <div className="text-xs text-slate-400">{member.email || 'No email'}</div>
+                                                                </div>
+
+                                                                <button
+                                                                    className="btn-secondary"
+                                                                    disabled={!canRemove}
+                                                                    onClick={() => handleRemoveGroupMember(member.id)}
+                                                                    type="button"
+                                                                >
+                                                                    {canRemove ? 'Remove' : 'You'}
+                                                                </button>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+
+                                                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                    <div className="mb-2 text-sm font-semibold text-white">Add existing friend</div>
+                                                    {addableFriends.length ? (
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            <select
+                                                                className="auth-input"
+                                                                onChange={(event) => setMemberToAddId(event.target.value)}
+                                                                value={memberToAddId}
+                                                            >
+                                                                {addableFriends.map((friend) => (
+                                                                    <option key={friend.id} value={friend.id}>
+                                                                        {friend.name}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                            <button className="btn-primary" onClick={handleAddGroupMember} type="button">
+                                                                Add member
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-sm text-slate-400">
+                                                            All your friends in this account are already in the group.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ) : null}
 
                                         <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                                             <div className="mb-4 flex items-center justify-between">
@@ -1136,7 +1507,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
 
                                             {selectedGroup.expenses.length ? (
                                                 <div className="space-y-3">
-                                                    {selectedGroup.expenses.map((expense) => {
+                                                    {groupedExpenses.openExpenses.map((expense) => {
                                                         const payer = selectedGroupRecord.members.find(
                                                             (member) => member.id === expense.paidByMemberId,
                                                         )
@@ -1152,13 +1523,17 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                             )
                                                             .filter(Boolean)
                                                         const isCustomSplit = expense.splitMethod === 'custom'
+                                                        const canEditExpense =
+                                                            expense.createdByMemberId
+                                                                ? expense.createdByMemberId === userId
+                                                                : expense.paidByMemberId === userId
 
                                                         return (
                                                             <div key={expense.id} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                                                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                                                     <div>
                                                                         <div className="text-sm font-semibold text-white">
-                                                                            {payer?.name || 'Unknown'} paid ${expense.amount}
+                                                                            {payer?.name || 'Unknown'} paid ${expense.amount} for {expense.title || 'Untitled expense'}
                                                                         </div>
                                                                         <div className="mt-1 text-xs text-slate-400">
                                                                             {isCustomSplit ? 'Custom split' : 'Equal split'} between {[expense.paidByMemberId, ...participantIds]
@@ -1171,6 +1546,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                                     <div className="flex gap-2">
                                                                         <button
                                                                             className="btn-secondary"
+                                                                            disabled={!canEditExpense}
                                                                             onClick={() => handleExpenseEdit(expense)}
                                                                             type="button"
                                                                         >
@@ -1178,6 +1554,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                                         </button>
                                                                         <button
                                                                             className="btn-secondary"
+                                                                            disabled={!canEditExpense}
                                                                             onClick={() => handleExpenseDelete(expense.id)}
                                                                             type="button"
                                                                         >
@@ -1186,9 +1563,53 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                                     </div>
                                                                 </div>
 
+                                                                {!canEditExpense ? (
+                                                                    <div className="mt-2 text-xs text-slate-400">
+                                                                        Only the member who added this expense can edit or delete it.
+                                                                    </div>
+                                                                ) : null}
+
                                                             </div>
                                                         )
                                                     })}
+
+                                                    {groupedExpenses.paidExpenses.length ? (
+                                                        <>
+                                                            <div className="pt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                                Already paid history
+                                                            </div>
+
+                                                            {groupedExpenses.paidExpenses.map((expense) => {
+                                                                const payer = selectedGroupRecord.members.find(
+                                                                    (member) => member.id === expense.paidByMemberId,
+                                                                )
+                                                                const paidAt = expense.createdAt
+
+                                                                return (
+                                                                    <div
+                                                                        key={`paid-${expense.id}`}
+                                                                        className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+                                                                    >
+                                                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                            <div>
+                                                                                <span className="font-semibold text-emerald-300">{payer?.name || 'Unknown'}</span>
+                                                                                <span className="mx-2 text-slate-400">paid</span>
+                                                                                <span className="font-semibold text-white">${Number(expense.amount || 0).toFixed(2)}</span>
+                                                                                <span className="mx-2 text-slate-400">for</span>
+                                                                                <span className="font-semibold text-emerald-300">{expense.title || 'Untitled expense'}</span>
+                                                                            </div>
+                                                                            <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs text-emerald-200">
+                                                                                Confirmed paid
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="mt-1 text-xs text-slate-400">
+                                                                            {paidAt ? `Added ${new Date(paidAt).toLocaleString()}` : 'Recorded in payment history'}
+                                                                        </div>
+                                                                    </div>
+                                                                )
+                                                            })}
+                                                        </>
+                                                    ) : null}
                                                 </div>
                                             ) : (
                                                 <div className="rounded-2xl border border-dashed border-white/20 px-4 py-6 text-sm text-slate-400">
@@ -1205,18 +1626,68 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
 
                                             {selectedGroup.settlements.length ? (
                                                 <div className="space-y-2">
-                                                    {selectedGroup.settlements.map((item, index) => (
-                                                        <div
-                                                            key={`${item.fromMemberId}-${item.toMemberId}-${index}`}
-                                                            className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
-                                                        >
-                                                            <span className="font-semibold text-rose-300">{item.fromName}</span>
-                                                            <span className="mx-2 text-slate-400">owes</span>
-                                                            <span className="font-semibold text-emerald-300">{item.toName}</span>
-                                                            <span className="mx-2 text-slate-400">$</span>
-                                                            <span className="font-semibold text-white">{item.amount.toFixed(2)}</span>
-                                                        </div>
-                                                    ))}
+                                                    {selectedGroup.settlements.map((item, index) => {
+                                                        const settlementKey = buildSettlementKey(
+                                                            item.fromMemberId,
+                                                            item.toMemberId,
+                                                            item.amount,
+                                                        )
+                                                        const pendingPayment = pendingPaymentsBySettlementKey[settlementKey]
+                                                        const isCurrentUserDebtor = userId === item.fromMemberId
+                                                        const isCurrentUserCreditor = userId === item.toMemberId
+
+                                                        return (
+                                                            <div
+                                                                key={`${item.fromMemberId}-${item.toMemberId}-${index}`}
+                                                                className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+                                                            >
+                                                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                                                    <div>
+                                                                        <span className="font-semibold text-rose-300">{item.fromName}</span>
+                                                                        <span className="mx-2 text-slate-400">owes</span>
+                                                                        <span className="font-semibold text-emerald-300">{item.toName}</span>
+                                                                        <span className="mx-2 text-slate-400">$</span>
+                                                                        <span className="font-semibold text-white">{item.amount.toFixed(2)}</span>
+                                                                    </div>
+
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                        {pendingPayment ? (
+                                                                            isCurrentUserCreditor ? (
+                                                                                <>
+                                                                                    <button
+                                                                                        className="btn-primary"
+                                                                                        onClick={() => handleReviewPaymentRequest(pendingPayment.id, true)}
+                                                                                        type="button"
+                                                                                    >
+                                                                                        Confirm
+                                                                                    </button>
+                                                                                    <button
+                                                                                        className="btn-secondary"
+                                                                                        onClick={() => handleReviewPaymentRequest(pendingPayment.id, false)}
+                                                                                        type="button"
+                                                                                    >
+                                                                                        Decline
+                                                                                    </button>
+                                                                                </>
+                                                                            ) : (
+                                                                                <span className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-xs text-amber-200">
+                                                                                    Pending confirmation
+                                                                                </span>
+                                                                            )
+                                                                        ) : isCurrentUserDebtor ? (
+                                                                            <button
+                                                                                className="btn-primary"
+                                                                                onClick={() => handleRequestSettlementPayment(item)}
+                                                                                type="button"
+                                                                            >
+                                                                                Paid
+                                                                            </button>
+                                                                        ) : null}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
                                                 </div>
                                             ) : (
                                                 <div className="rounded-2xl border border-dashed border-white/20 px-4 py-6 text-sm text-slate-400">
@@ -1224,6 +1695,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                 </div>
                                             )}
                                         </div>
+
                                     </>
                                 ) : (
                                     <div className="rounded-3xl border border-dashed border-white/15 bg-white/5 px-5 py-8 text-center text-sm text-slate-400">
@@ -1263,6 +1735,20 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                             </div>
 
                                             <form className="space-y-4" onSubmit={handleExpenseSubmit}>
+                                                <div>
+                                                    <label className="text-xs text-slate-400" htmlFor="expense-title">
+                                                        What was this for?
+                                                    </label>
+                                                    <input
+                                                        id="expense-title"
+                                                        className="auth-input mt-2"
+                                                        onChange={(event) => setExpenseForm((current) => ({ ...current, title: event.target.value }))}
+                                                        placeholder="Groceries, rent, utilities..."
+                                                        type="text"
+                                                        value={expenseForm.title}
+                                                    />
+                                                </div>
+
                                                 <div className="grid gap-4 md:grid-cols-2">
                                                     <div>
                                                         <label className="text-xs text-slate-400" htmlFor="expense-amount">
