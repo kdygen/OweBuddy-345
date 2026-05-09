@@ -1116,12 +1116,12 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                     key={request.id}
                                                     className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                                                 >
-                                                    <div>
-                                                        <div className="font-semibold text-white">{request.requesterName}</div>
-                                                        <div className="text-sm text-slate-400">{request.requesterEmail}</div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="truncate font-semibold text-white">{request.requesterName}</div>
+                                                        <div className="truncate text-sm text-slate-400">{request.requesterEmail}</div>
                                                     </div>
 
-                                                    <div className="flex gap-2">
+                                                    <div className="flex flex-wrap gap-2">
                                                         <button
                                                             className="btn-primary"
                                                             onClick={() => handleAcceptFriendRequest(request.id)}
@@ -1160,8 +1160,8 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                                     key={request.id}
                                                     className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                                                 >
-                                                    <div className="font-semibold text-white">{request.recipientName}</div>
-                                                    <div className="text-sm text-slate-400">{request.recipientEmail}</div>
+                                                    <div className="truncate font-semibold text-white">{request.recipientName}</div>
+                                                    <div className="truncate text-sm text-slate-400">{request.recipientEmail}</div>
                                                 </div>
                                             ))}
                                         </div>
@@ -1246,18 +1246,18 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                                     </button>
                                 </div>
 
-                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                        <div className="text-xs text-slate-400">Total Groups</div>
-                                        <div className="mt-2 text-2xl font-semibold text-white">{groupStats.totalGroups}</div>
+                                <div className="grid grid-cols-3 gap-2 sm:gap-3 xl:grid-cols-3">
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
+                                        <div className="text-[10px] text-slate-400 sm:text-xs">Total Groups</div>
+                                        <div className="mt-1 text-lg font-semibold text-white sm:mt-2 sm:text-2xl">{groupStats.totalGroups}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                        <div className="text-xs text-slate-400">You Owe</div>
-                                        <div className="mt-2 text-2xl font-semibold text-rose-400">${groupStats.totalYouOwe}</div>
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
+                                        <div className="text-[10px] text-slate-400 sm:text-xs">You Owe</div>
+                                        <div className="mt-1 text-lg font-semibold text-rose-400 sm:mt-2 sm:text-2xl">${groupStats.totalYouOwe}</div>
                                     </div>
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                        <div className="text-xs text-slate-400">You're Owed</div>
-                                        <div className="mt-2 text-2xl font-semibold text-emerald-400">${groupStats.totalYouAreOwed}</div>
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-3 sm:p-4">
+                                        <div className="text-[10px] text-slate-400 sm:text-xs">You're Owed</div>
+                                        <div className="mt-1 text-lg font-semibold text-emerald-400 sm:mt-2 sm:text-2xl">${groupStats.totalYouAreOwed}</div>
                                     </div>
                                 </div>
 

@@ -1,7 +1,7 @@
 .dock-outer {
     position: fixed;
     left: 50%;
-    bottom: 0.5rem;
+    bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
     z-index: 45;
     margin: 0 0.5rem;
     display: flex;
@@ -78,5 +78,17 @@
     .dock-panel {
         gap: 0.45rem;
         padding: 0 0.4rem 0.4rem;
+    }
+}
+
+@media (hover: none) {
+    .dock-item {
+        transition: transform 120ms ease;
+    }
+    .dock-item:active {
+        transform: scale(0.94);
+    }
+    .dock-label {
+        display: none;
     }
 }

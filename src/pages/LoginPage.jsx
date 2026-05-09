@@ -72,7 +72,7 @@ function LoginPage({ onBack, onLoginSuccess, onOpenSignup }) {
                             <span className="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-sm text-slate-200">
                                 Welcome back
                             </span>
-                            <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                            <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">
                                 Sign in to continue.
                             </h1>
                             <p className="max-w-lg text-base leading-7 text-slate-300">

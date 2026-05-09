@@ -9,6 +9,11 @@
     color: #f8fafc;
 }
 
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
 html,
 body,
 #root {
@@ -19,6 +24,8 @@ body {
     margin: 0;
     background: #050816;
     color: #f8fafc;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: rgba(245, 158, 11, 0.18);
 }
 
 * {
@@ -63,19 +70,22 @@ a {
         box-shadow 180ms ease;
 }
 
-.btn-primary:hover,
-.btn-secondary:hover,
-.glass-button:hover,
-.nav-link:hover,
-.nav-pill:hover {
-    transform: translateY(-1px);
+@media (hover: hover) {
+    .btn-primary:hover,
+    .btn-secondary:hover,
+    .glass-button:hover,
+    .nav-link:hover,
+    .nav-pill:hover {
+        transform: translateY(-1px);
+    }
 }
 
 .btn-primary {
     border: 1px solid rgba(245, 158, 11, 0.35);
     border-radius: 999px;
     background: linear-gradient(135deg, #f59e0b, #f97316);
-    padding: 0.95rem 1.35rem;
+    padding: 0.85rem 1.15rem;
+    min-height: 44px;
     font-weight: 700;
     color: #04111f;
     box-shadow: 0 14px 30px rgba(249, 115, 22, 0.28);
@@ -85,9 +95,17 @@ a {
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.05);
-    padding: 0.95rem 1.35rem;
+    padding: 0.85rem 1.15rem;
+    min-height: 44px;
     font-weight: 600;
     color: #f8fafc;
+}
+
+@media (min-width: 640px) {
+    .btn-primary,
+    .btn-secondary {
+        padding: 0.95rem 1.35rem;
+    }
 }
 
 .glass-button {
@@ -129,6 +147,7 @@ a {
     border-radius: 1rem;
     background: rgba(255, 255, 255, 0.05);
     padding: 0.95rem 1rem;
+    font-size: 16px;
     color: #ffffff;
     outline: none;
     transition:

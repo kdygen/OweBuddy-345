@@ -18,9 +18,9 @@ function LandingPage({ onLogin, onSignup }) {
             </div>
 
             <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-5 sm:px-8 lg:px-12">
-                <header className="mb-8 flex items-center justify-between gap-4 rounded-full border border-white/10 bg-white/5 px-5 py-4 backdrop-blur">
+                <header className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur sm:rounded-full sm:px-5 sm:py-4">
                     <div className="flex items-center text-left">
-                        <span className="block text-2xl font-semibold tracking-tight text-white sm:text-3xl">OweBuddy</span>
+                        <span className="block text-xl font-semibold tracking-tight text-white sm:text-3xl">OweBuddy</span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -35,7 +35,7 @@ function LandingPage({ onLogin, onSignup }) {
 
                 <section className="flex flex-1 items-center justify-center text-center">
                     <div className="space-y-5">
-                        <h1 className="mx-auto max-w-3xl text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl">
+                        <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
                             Keep shared money tidy without the noise.
                         </h1>
                         <p className="mx-auto max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">

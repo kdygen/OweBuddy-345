@@ -85,7 +85,7 @@ function SignupPage({ onBack, onOpenLogin, onSignupSuccess }) {
                             <span className="inline-flex w-fit rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-1 text-sm text-emerald-100">
                                 Create account
                             </span>
-                            <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                            <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">
                                 Set up your OweBuddy profile.
                             </h1>
                             <p className="max-w-lg text-base leading-7 text-slate-300">

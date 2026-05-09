@@ -27,10 +27,10 @@ function FriendsList({ friends, isLoading = false, onDeleteFriend, onSelectFrien
                     onClick={onSelectFriend ? () => onSelectFriend(friend) : undefined}
                 >
                     <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div>
-                            <div className="text-lg font-semibold text-white">{friend.name}</div>
-                            <div className="text-sm text-slate-400">{friend.email}</div>
-                            {friend.note ? <div className="mt-2 text-sm text-slate-300">{friend.note}</div> : null}
+                        <div className="min-w-0 flex-1">
+                            <div className="truncate text-lg font-semibold text-white">{friend.name}</div>
+                            <div className="truncate text-sm text-slate-400">{friend.email}</div>
+                            {friend.note ? <div className="mt-2 text-sm text-slate-300 break-words">{friend.note}</div> : null}
                         </div>
                         <div className="flex flex-col items-end gap-2">
                             <div className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-sm font-medium text-emerald-100">
