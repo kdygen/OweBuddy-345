@@ -194,7 +194,6 @@ const ProfileIcon = () => (
 
 function DashboardPage({ userId, userName, userEmail, onLogout }) {
     const [activeTab, setActiveTab] = useState('overview')
-    const [theme, setTheme] = useState('light')
     const [friends, setFriends] = useState([])
     const [groups, setGroups] = useState([])
     const [friendsLoading, setFriendsLoading] = useState(true)
@@ -954,18 +953,6 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
         }
     }
 
-    useEffect(() => {
-        const savedTheme = window.localStorage.getItem('owebuddy-theme')
-        if (savedTheme === 'light' || savedTheme === 'dark') {
-            setTheme(savedTheme)
-        }
-    }, [])
-
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', theme)
-    }, [theme])
-
-    const isDarkTheme = theme === 'dark'
     const shouldShowSubtitle = !['groups', 'overview', 'group-details', 'friends', 'add-friend', 'friend-profile', 'profile'].includes(activeTab)
 
     const dockItems = [
@@ -1000,13 +987,7 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
     ]
 
     return (
-        <main
-            className={`relative min-h-screen overflow-hidden transition-colors ${theme === 'dark'
-                ? 'bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.14),_transparent_24%),linear-gradient(180deg,_#10172a,_#050816)] text-white'
-                : 'bg-[linear-gradient(180deg,_#f8fafc,_#e2e8f0)] text-slate-900'
-                }`}
-            data-theme={theme}
-        >
+        <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.14),_transparent_24%),linear-gradient(180deg,_#10172a,_#050816)] text-white">
             <div className="pointer-events-none absolute inset-0 z-0 opacity-80">
                 <DotField
                     dotRadius={1.5}
@@ -1015,9 +996,9 @@ function DashboardPage({ userId, userName, userEmail, onLogout }) {
                     glowRadius={160}
                     sparkle={false}
                     waveAmplitude={0}
-                    gradientFrom={isDarkTheme ? 'rgba(245, 158, 11, 0.28)' : 'rgba(217, 119, 6, 0.12)'}
-                    gradientTo={isDarkTheme ? 'rgba(56, 189, 248, 0.2)' : 'rgba(14, 116, 144, 0.1)'}
-                    glowColor={isDarkTheme ? '#120F17' : '#cbd5e1'}
+                    gradientFrom="rgba(245, 158, 11, 0.28)"
+                    gradientTo="rgba(56, 189, 248, 0.2)"
+                    glowColor="#120F17"
                 />
             </div>
 
